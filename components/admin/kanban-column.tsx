@@ -10,9 +10,15 @@ type KanbanColumnProps = {
   status: PostStatus;
   posts: Post[];
   index: number;
+  onOpenPost: (post: Post) => void;
 };
 
-export function KanbanColumn({ status, posts, index }: KanbanColumnProps) {
+export function KanbanColumn({
+  status,
+  posts,
+  index,
+  onOpenPost,
+}: KanbanColumnProps) {
   const meta = STATUS_META[status];
   const { setNodeRef, isOver } = useDroppable({
     id: status,
@@ -23,7 +29,8 @@ export function KanbanColumn({ status, posts, index }: KanbanColumnProps) {
     <section
       className={cn(
         "animate-board-in flex w-[300px] shrink-0 flex-col rounded-3xl border border-white/70 bg-white/45 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-md transition-all duration-200",
-        isOver && "border-teal-300/80 bg-teal-50/50 shadow-[0_0_0_1px_rgba(45,212,191,0.25)]"
+        isOver &&
+          "border-teal-300/80 bg-teal-50/50 shadow-[0_0_0_1px_rgba(45,212,191,0.25)]"
       )}
       style={{ animationDelay: `${120 + index * 70}ms` }}
     >
@@ -40,7 +47,7 @@ export function KanbanColumn({ status, posts, index }: KanbanColumnProps) {
           </span>
         </div>
         <p className="text-xs text-slate-500">{meta.hint}</p>
-        <div className={cn("h-1 rounded-full", meta.accent, "opacity-70")} />
+        <div className={cn("h-1 rounded-full opacity-70", meta.accent)} />
       </div>
 
       <div
@@ -57,7 +64,9 @@ export function KanbanColumn({ status, posts, index }: KanbanColumnProps) {
             Drop a request into this stage
           </div>
         ) : (
-          posts.map((post) => <KanbanCard key={post.id} post={post} />)
+          posts.map((post) => (
+            <KanbanCard key={post.id} post={post} onOpen={onOpenPost} />
+          ))
         )}
       </div>
     </section>

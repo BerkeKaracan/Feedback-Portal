@@ -14,14 +14,17 @@ import {
 import { RefreshCw } from "lucide-react";
 
 import { BoardMetrics } from "@/components/admin/board-metrics";
+import { BoardToolbar } from "@/components/admin/board-toolbar";
 import { KanbanCard } from "@/components/admin/kanban-card";
 import { KanbanColumn } from "@/components/admin/kanban-column";
+import { RequestDetailSheet } from "@/components/admin/request-detail-sheet";
 import { Button } from "@/components/ui/button";
 import { fetchPostsWithVotes, updatePostStatus } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/client";
 import { useKanbanStore } from "@/stores/kanban-store";
 import {
   POST_STATUSES,
+  STATUS_LABELS,
   type Post,
   type PostStatus,
 } from "@/types/database";
@@ -43,6 +46,11 @@ export function KanbanBoard() {
   const setPosts = useKanbanStore((state) => state.setPosts);
   const movePost = useKanbanStore((state) => state.movePost);
   const [activePost, setActivePost] = useState<Post | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<PostStatus | "all">("all");
+  const [minVotes, setMinVotes] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,16 +83,66 @@ export function KanbanBoard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount
   }, []);
 
+  const filteredPosts = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+
+    return posts.filter((post) => {
+      if (statusFilter !== "all" && post.status !== statusFilter) return false;
+      if (post.vote_count < minVotes) return false;
+      if (!normalized) return true;
+      return (
+        post.title.toLowerCase().includes(normalized) ||
+        post.description.toLowerCase().includes(normalized)
+      );
+    });
+  }, [minVotes, posts, query, statusFilter]);
+
   const columns = useMemo(
     () =>
       POST_STATUSES.map((status) => ({
         status,
-        posts: posts
+        posts: filteredPosts
           .filter((post) => post.status === status)
           .sort((a, b) => b.vote_count - a.vote_count),
       })),
-    [posts]
+    [filteredPosts]
   );
+
+  const selectedPost =
+    posts.find((post) => post.id === selectedPostId) ?? null;
+
+  async function persistStatusChange(
+    postId: string,
+    nextStatus: PostStatus,
+    options?: { closeDetail?: boolean }
+  ) {
+    const current = posts.find((post) => post.id === postId);
+    if (!current || current.status === nextStatus) return;
+
+    const previousStatus = current.status;
+    movePost(postId, nextStatus);
+    setNotice(`Moved “${current.title}” → ${STATUS_LABELS[nextStatus]}`);
+    setError(null);
+
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        movePost(postId, previousStatus);
+        setError("Sign in to update request status.");
+        setNotice(null);
+        return;
+      }
+
+      await updatePostStatus(supabase, postId, nextStatus);
+      if (options?.closeDetail) {
+        setDetailOpen(false);
+      }
+    } catch (err) {
+      movePost(postId, previousStatus);
+      setError(err instanceof Error ? err.message : "Failed to update status");
+      setNotice(null);
+    }
+  }
 
   function handleDragStart(event: DragStartEvent) {
     const post = posts.find((item) => item.id === event.active.id) ?? null;
@@ -101,32 +159,16 @@ export function KanbanBoard() {
     const nextStatus = resolveStatus(over.id, posts);
     if (!nextStatus) return;
 
-    const current = posts.find((post) => post.id === active.id);
-    if (!current || current.status === nextStatus) return;
-
-    const previousStatus = current.status;
-    movePost(String(active.id), nextStatus);
-    setNotice(`Moved “${current.title}” → ${nextStatus.replace("-", " ")}`);
-
-    try {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
-        movePost(String(active.id), previousStatus);
-        setError("Sign in to update request status.");
-        setNotice(null);
-        return;
-      }
-
-      await updatePostStatus(supabase, String(active.id), nextStatus);
-    } catch (err) {
-      movePost(String(active.id), previousStatus);
-      setError(err instanceof Error ? err.message : "Failed to update status");
-      setNotice(null);
-    }
+    await persistStatusChange(String(active.id), nextStatus);
   }
 
   function handleDragCancel() {
     setActivePost(null);
+  }
+
+  function handleOpenPost(post: Post) {
+    setSelectedPostId(post.id);
+    setDetailOpen(true);
   }
 
   if (loading) {
@@ -164,6 +206,17 @@ export function KanbanBoard() {
 
       <BoardMetrics posts={posts} />
 
+      <BoardToolbar
+        query={query}
+        onQueryChange={setQuery}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        minVotes={minVotes}
+        onMinVotesChange={setMinVotes}
+        visibleCount={filteredPosts.length}
+        totalCount={posts.length}
+      />
+
       {error ? (
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
@@ -190,6 +243,7 @@ export function KanbanBoard() {
                 status={column.status}
                 posts={column.posts}
                 index={index}
+                onOpenPost={handleOpenPost}
               />
             ))}
           </div>
@@ -199,6 +253,15 @@ export function KanbanBoard() {
           {activePost ? <KanbanCard post={activePost} isOverlay /> : null}
         </DragOverlay>
       </DndContext>
+
+      <RequestDetailSheet
+        post={selectedPost}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onStatusChange={(postId, status) => {
+          void persistStatusChange(postId, status);
+        }}
+      />
     </div>
   );
 }

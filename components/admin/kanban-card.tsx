@@ -10,9 +10,10 @@ import type { Post } from "@/types/database";
 type KanbanCardProps = {
   post: Post;
   isOverlay?: boolean;
+  onOpen?: (post: Post) => void;
 };
 
-export function KanbanCard({ post, isOverlay }: KanbanCardProps) {
+export function KanbanCard({ post, isOverlay, onOpen }: KanbanCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: post.id,
     data: { status: post.status, post },
@@ -26,7 +27,8 @@ export function KanbanCard({ post, isOverlay }: KanbanCardProps) {
         "group rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_1px_0_rgba(15,23,42,0.04)] transition-all duration-200",
         "hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md",
         isDragging && !isOverlay && "opacity-30",
-        isOverlay && "scale-[1.02] rotate-1 border-teal-300 shadow-xl ring-1 ring-teal-200"
+        isOverlay &&
+          "scale-[1.02] rotate-1 border-teal-300 shadow-xl ring-1 ring-teal-200"
       )}
     >
       <div className="flex gap-3">
@@ -47,7 +49,11 @@ export function KanbanCard({ post, isOverlay }: KanbanCardProps) {
           </div>
         </div>
 
-        <div className="min-w-0 flex-1 space-y-2">
+        <button
+          type="button"
+          className="min-w-0 flex-1 space-y-2 rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+          onClick={() => onOpen?.(post)}
+        >
           <h3 className="text-sm font-semibold leading-snug tracking-tight text-slate-900">
             {post.title}
           </h3>
@@ -60,7 +66,7 @@ export function KanbanCard({ post, isOverlay }: KanbanCardProps) {
               {formatRelativeDate(post.created_at)}
             </span>
           </div>
-        </div>
+        </button>
       </div>
     </article>
   );
