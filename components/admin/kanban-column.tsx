@@ -3,16 +3,17 @@
 import { useDroppable } from "@dnd-kit/core";
 
 import { KanbanCard } from "@/components/admin/kanban-card";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { STATUS_LABELS, type Post, type PostStatus } from "@/types/database";
+import { STATUS_META, type Post, type PostStatus } from "@/types/database";
 
 type KanbanColumnProps = {
   status: PostStatus;
   posts: Post[];
+  index: number;
 };
 
-export function KanbanColumn({ status, posts }: KanbanColumnProps) {
+export function KanbanColumn({ status, posts, index }: KanbanColumnProps) {
+  const meta = STATUS_META[status];
   const { setNodeRef, isOver } = useDroppable({
     id: status,
     data: { status },
@@ -21,21 +22,39 @@ export function KanbanColumn({ status, posts }: KanbanColumnProps) {
   return (
     <section
       className={cn(
-        "flex min-h-72 flex-col rounded-xl border bg-muted/30 p-3 transition-colors",
-        isOver && "border-primary/40 bg-primary/5"
+        "animate-board-in flex w-[300px] shrink-0 flex-col rounded-3xl border border-white/70 bg-white/45 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-md transition-all duration-200",
+        isOver && "border-teal-300/80 bg-teal-50/50 shadow-[0_0_0_1px_rgba(45,212,191,0.25)]"
       )}
+      style={{ animationDelay: `${120 + index * 70}ms` }}
     >
-      <div className="mb-3 flex items-center justify-between gap-2 px-1">
-        <h2 className="text-sm font-medium">{STATUS_LABELS[status]}</h2>
-        <Badge variant="secondary" className="tabular-nums">
-          {posts.length}
-        </Badge>
+      <div className="mb-3 space-y-2 px-1">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className={cn("size-2.5 rounded-full", meta.accent)} />
+            <h2 className="text-sm font-semibold tracking-tight text-slate-900">
+              {meta.label}
+            </h2>
+          </div>
+          <span className="rounded-full bg-slate-900/5 px-2 py-0.5 text-xs font-medium text-slate-600 tabular-nums">
+            {posts.length}
+          </span>
+        </div>
+        <p className="text-xs text-slate-500">{meta.hint}</p>
+        <div className={cn("h-1 rounded-full", meta.accent, "opacity-70")} />
       </div>
 
-      <div ref={setNodeRef} className="flex flex-1 flex-col gap-2">
+      <div
+        ref={setNodeRef}
+        className="flex min-h-[420px] flex-1 flex-col gap-2.5 overflow-y-auto pr-0.5"
+      >
         {posts.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed bg-background/50 px-3 py-8 text-center text-xs text-muted-foreground">
-            Drop requests here
+          <div
+            className={cn(
+              "flex flex-1 items-center justify-center rounded-2xl border border-dashed border-slate-300/80 bg-white/40 px-4 py-10 text-center text-xs text-slate-400 transition-colors",
+              isOver && "border-teal-400 bg-teal-50/60 text-teal-700"
+            )}
+          >
+            Drop a request into this stage
           </div>
         ) : (
           posts.map((post) => <KanbanCard key={post.id} post={post} />)

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatRelativeDate } from "@/lib/format";
 import type { Post } from "@/types/database";
 
 import { StatusBadge } from "@/components/board/status-badge";
@@ -12,7 +13,7 @@ type FeatureCardProps = {
 
 export function FeatureCard({ post, onToggleVote }: FeatureCardProps) {
   return (
-    <article className="flex gap-4 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/30">
+    <article className="group flex gap-4 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
       <UpvoteButton
         count={post.vote_count}
         voted={post.has_voted}
@@ -21,21 +22,16 @@ export function FeatureCard({ post, onToggleVote }: FeatureCardProps) {
 
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-sm font-medium tracking-tight sm:text-base">
+          <h2 className="text-sm font-semibold tracking-tight text-slate-900 sm:text-base">
             {post.title}
           </h2>
           <StatusBadge status={post.status} />
         </div>
-        <p className="line-clamp-2 text-sm text-muted-foreground">
+        <p className="line-clamp-2 text-sm leading-relaxed text-slate-500">
           {post.description}
         </p>
-        <p className="text-xs text-muted-foreground">
-          {post.author_name} ·{" "}
-          {new Date(post.created_at).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
+        <p className="text-xs text-slate-400">
+          {post.author_name} · {formatRelativeDate(post.created_at)}
         </p>
       </div>
     </article>

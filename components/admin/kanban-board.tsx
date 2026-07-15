@@ -11,9 +11,12 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { RefreshCw } from "lucide-react";
 
+import { BoardMetrics } from "@/components/admin/board-metrics";
 import { KanbanCard } from "@/components/admin/kanban-card";
 import { KanbanColumn } from "@/components/admin/kanban-column";
+import { Button } from "@/components/ui/button";
 import { fetchPostsWithVotes, updatePostStatus } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/client";
 import { useKanbanStore } from "@/stores/kanban-store";
@@ -41,7 +44,9 @@ export function KanbanBoard() {
   const movePost = useKanbanStore((state) => state.movePost);
   const [activePost, setActivePost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -49,28 +54,26 @@ export function KanbanBoard() {
     })
   );
 
-  useEffect(() => {
-    let mounted = true;
+  async function load(options?: { soft?: boolean }) {
+    if (options?.soft) setRefreshing(true);
+    setError(null);
 
-    async function load() {
-      try {
-        const { data } = await supabase.auth.getUser();
-        const nextPosts = await fetchPostsWithVotes(supabase, data.user?.id);
-        if (mounted) setPosts(nextPosts);
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : "Failed to load board");
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
+    try {
+      const { data } = await supabase.auth.getUser();
+      const nextPosts = await fetchPostsWithVotes(supabase, data.user?.id);
+      setPosts(nextPosts);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load board");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  }
 
+  useEffect(() => {
     void load();
-    return () => {
-      mounted = false;
-    };
-  }, [setPosts, supabase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount
+  }, []);
 
   const columns = useMemo(
     () =>
@@ -86,6 +89,7 @@ export function KanbanBoard() {
   function handleDragStart(event: DragStartEvent) {
     const post = posts.find((item) => item.id === event.active.id) ?? null;
     setActivePost(post);
+    setNotice(null);
   }
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -102,12 +106,22 @@ export function KanbanBoard() {
 
     const previousStatus = current.status;
     movePost(String(active.id), nextStatus);
+    setNotice(`Moved “${current.title}” → ${nextStatus.replace("-", " ")}`);
 
     try {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        movePost(String(active.id), previousStatus);
+        setError("Sign in to update request status.");
+        setNotice(null);
+        return;
+      }
+
       await updatePostStatus(supabase, String(active.id), nextStatus);
     } catch (err) {
       movePost(String(active.id), previousStatus);
       setError(err instanceof Error ? err.message : "Failed to update status");
+      setNotice(null);
     }
   }
 
@@ -117,15 +131,49 @@ export function KanbanBoard() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-dashed px-6 py-16 text-center text-sm text-muted-foreground">
-        Loading Kanban...
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-24 animate-pulse rounded-2xl border bg-white/50"
+            />
+          ))}
+        </div>
+        <div className="h-[480px] animate-pulse rounded-3xl border bg-white/40" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+    <div className="space-y-5">
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void load({ soft: true })}
+          disabled={refreshing}
+        >
+          <RefreshCw
+            data-icon="inline-start"
+            className={refreshing ? "animate-spin" : undefined}
+          />
+          Refresh
+        </Button>
+      </div>
+
+      <BoardMetrics posts={posts} />
+
+      {error ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <p className="animate-board-in rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">
+          {notice}
+        </p>
+      ) : null}
 
       <DndContext
         sensors={sensors}
@@ -134,14 +182,17 @@ export function KanbanBoard() {
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {columns.map((column) => (
-            <KanbanColumn
-              key={column.status}
-              status={column.status}
-              posts={column.posts}
-            />
-          ))}
+        <div className="overflow-x-auto pb-2">
+          <div className="flex min-w-max gap-4">
+            {columns.map((column, index) => (
+              <KanbanColumn
+                key={column.status}
+                status={column.status}
+                posts={column.posts}
+                index={index}
+              />
+            ))}
+          </div>
         </div>
 
         <DragOverlay dropAnimation={null}>
