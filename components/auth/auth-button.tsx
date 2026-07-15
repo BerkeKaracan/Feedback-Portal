@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
+import { useState } from "react";
 import { LogIn, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,27 +14,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useAuthProfile } from "@/hooks/use-auth-profile";
 import { createClient } from "@/lib/supabase/client";
 
 export function AuthButton() {
   const supabase = createClient();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, profile } = useAuthProfile();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, [supabase.auth]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -45,7 +35,15 @@ export function AuthButton() {
     const result =
       mode === "signin"
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+        : await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                display_name: email.split("@")[0] || "User",
+              },
+            },
+          });
 
     setLoading(false);
 
@@ -66,8 +64,9 @@ export function AuthButton() {
   if (user) {
     return (
       <div className="flex items-center gap-2">
-        <span className="hidden max-w-40 truncate text-xs text-muted-foreground sm:inline">
-          {user.email}
+        <span className="hidden max-w-40 truncate text-xs text-slate-500 sm:inline">
+          {profile?.display_name ?? user.email}
+          {profile?.is_admin ? " · Admin" : ""}
         </span>
         <Button variant="ghost" size="sm" onClick={handleSignOut}>
           <LogOut data-icon="inline-start" />
@@ -90,8 +89,7 @@ export function AuthButton() {
               {mode === "signin" ? "Sign in" : "Create account"}
             </DialogTitle>
             <DialogDescription>
-              Local Supabase auth — use any email/password (confirmation is
-              off).
+              Local demo: admin@feedback.local / password123
             </DialogDescription>
           </DialogHeader>
 

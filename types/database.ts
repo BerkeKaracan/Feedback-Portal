@@ -1,5 +1,12 @@
 export type PostStatus = "idea" | "planned" | "in-progress" | "done";
 
+export type Profile = {
+  id: string;
+  display_name: string;
+  is_admin: boolean;
+  created_at: string;
+};
+
 export type Post = {
   id: string;
   title: string;

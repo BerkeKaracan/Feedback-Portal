@@ -139,7 +139,14 @@ export function KanbanBoard() {
       }
     } catch (err) {
       movePost(postId, previousStatus);
-      setError(err instanceof Error ? err.message : "Failed to update status");
+      const message =
+        err instanceof Error ? err.message : "Failed to update status";
+      setError(
+        message.toLowerCase().includes("row-level security") ||
+          message.toLowerCase().includes("policy")
+          ? "Only admins can change request status."
+          : message
+      );
       setNotice(null);
     }
   }

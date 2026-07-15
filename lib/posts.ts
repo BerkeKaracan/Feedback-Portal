@@ -5,28 +5,36 @@ import type { Database } from "@/types/supabase";
 
 type Client = SupabaseClient<Database>;
 
-function shortAuthor(authorId: string) {
-  return `User ${authorId.slice(0, 8)}`;
-}
-
 export async function fetchPostsWithVotes(
   supabase: Client,
   userId?: string | null
 ): Promise<Post[]> {
-  const [{ data: posts, error: postsError }, { data: votes, error: votesError }] =
-    await Promise.all([
-      supabase.from("posts").select("*").order("created_at", { ascending: false }),
-      supabase.from("votes").select("post_id, user_id"),
-    ]);
+  const [
+    { data: posts, error: postsError },
+    { data: votes, error: votesError },
+    { data: profiles, error: profilesError },
+  ] = await Promise.all([
+    supabase.from("posts").select("*").order("created_at", { ascending: false }),
+    supabase.from("votes").select("post_id, user_id"),
+    supabase.from("profiles").select("id, display_name"),
+  ]);
 
   if (postsError) throw postsError;
   if (votesError) throw votesError;
+  if (profilesError) throw profilesError;
+
+  const displayNameById = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile.display_name])
+  );
 
   const voteCountByPost = new Map<string, number>();
   const votedPostIds = new Set<string>();
 
   for (const vote of votes ?? []) {
-    voteCountByPost.set(vote.post_id, (voteCountByPost.get(vote.post_id) ?? 0) + 1);
+    voteCountByPost.set(
+      vote.post_id,
+      (voteCountByPost.get(vote.post_id) ?? 0) + 1
+    );
     if (userId && vote.user_id === userId) {
       votedPostIds.add(vote.post_id);
     }
@@ -38,7 +46,9 @@ export async function fetchPostsWithVotes(
     description: post.description,
     status: post.status,
     author_id: post.author_id,
-    author_name: shortAuthor(post.author_id),
+    author_name:
+      displayNameById.get(post.author_id) ??
+      `User ${post.author_id.slice(0, 8)}`,
     vote_count: voteCountByPost.get(post.id) ?? 0,
     created_at: post.created_at,
     has_voted: votedPostIds.has(post.id),

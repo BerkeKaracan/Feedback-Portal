@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { User } from "@supabase/supabase-js";
 import { Search } from "lucide-react";
 
 import { FeatureCard } from "@/components/board/feature-card";
@@ -13,12 +12,13 @@ import {
   toggleVote,
 } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/client";
+import { useAuthProfile } from "@/hooks/use-auth-profile";
 import type { Post } from "@/types/database";
 
 export function PublicBoard() {
   const supabase = createClient();
+  const { user, profile } = useAuthProfile();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [user, setUser] = useState<User | null>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,30 +40,8 @@ export function PublicBoard() {
   );
 
   useEffect(() => {
-    let mounted = true;
-
-    async function init() {
-      const { data } = await supabase.auth.getUser();
-      if (!mounted) return;
-      setUser(data.user);
-      await loadPosts(data.user?.id);
-    }
-
-    void init();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const nextUser = session?.user ?? null;
-      setUser(nextUser);
-      void loadPosts(nextUser?.id);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [loadPosts, supabase.auth]);
+    void loadPosts(user?.id);
+  }, [loadPosts, user?.id]);
 
   const sortedPosts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -149,7 +127,7 @@ export function PublicBoard() {
           description: created.description,
           status: created.status,
           author_id: created.author_id,
-          author_name: "You",
+          author_name: profile?.display_name ?? "You",
           vote_count: 0,
           created_at: created.created_at,
           has_voted: false,

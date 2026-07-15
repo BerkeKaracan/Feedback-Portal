@@ -6,11 +6,13 @@ import { LayoutDashboard, Sparkles } from "lucide-react";
 
 import { AuthButton } from "@/components/auth/auth-button";
 import { buttonVariants } from "@/components/ui/button";
+import { useAuthProfile } from "@/hooks/use-auth-profile";
 import { cn } from "@/lib/utils";
 
 export function SiteHeader() {
   const pathname = usePathname();
   const onAdmin = pathname.startsWith("/admin");
+  const { isAdmin } = useAuthProfile();
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/75 backdrop-blur-md">
@@ -26,16 +28,22 @@ export function SiteHeader() {
         </Link>
 
         <nav className="flex items-center gap-1">
-          <Link
-            href="/admin"
-            className={cn(
-              buttonVariants({ variant: onAdmin ? "secondary" : "ghost", size: "sm" }),
-              onAdmin && "bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
-            )}
-          >
-            <LayoutDashboard data-icon="inline-start" />
-            Admin
-          </Link>
+          {isAdmin ? (
+            <Link
+              href="/admin"
+              className={cn(
+                buttonVariants({
+                  variant: onAdmin ? "secondary" : "ghost",
+                  size: "sm",
+                }),
+                onAdmin &&
+                  "bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
+              )}
+            >
+              <LayoutDashboard data-icon="inline-start" />
+              Admin
+            </Link>
+          ) : null}
           <AuthButton />
         </nav>
       </div>
