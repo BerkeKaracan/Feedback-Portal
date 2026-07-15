@@ -1,0 +1,2 @@
+-- Optional seed data for local development.
+-- Keep empty for now; create posts via the UI after signing up.
