@@ -3,6 +3,7 @@
 import { ChevronUp } from "lucide-react";
 
 import { StatusBadge } from "@/components/board/status-badge";
+import { TagChips } from "@/components/board/tag-chips";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -94,6 +95,15 @@ export function RequestDetailSheet({
                   {post.description}
                 </p>
               </section>
+
+              {post.tags.length > 0 ? (
+                <section className="space-y-2">
+                  <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                    Tags
+                  </h3>
+                  <TagChips tags={post.tags} size="md" />
+                </section>
+              ) : null}
 
               <section className="space-y-2">
                 <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">

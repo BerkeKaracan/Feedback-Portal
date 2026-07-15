@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { AnalyzeIdeaResponse } from "@/lib/ai/types";
 
 type SubmitIdeaDialogProps = {
-  onSubmit: (title: string, description: string) => void;
+  onSubmit: (title: string, description: string, tags: string[]) => void;
 };
 
 export function SubmitIdeaDialog({ onSubmit }: SubmitIdeaDialogProps) {
@@ -84,7 +84,7 @@ export function SubmitIdeaDialog({ onSubmit }: SubmitIdeaDialogProps) {
     const trimmedDescription = description.trim();
     if (!trimmedTitle || !trimmedDescription) return;
 
-    onSubmit(trimmedTitle, trimmedDescription);
+    onSubmit(trimmedTitle, trimmedDescription, analysis?.tags ?? []);
     setTitle("");
     setDescription("");
     setAnalysis(null);

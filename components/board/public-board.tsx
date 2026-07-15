@@ -6,20 +6,27 @@ import { Search } from "lucide-react";
 import { FeatureCard } from "@/components/board/feature-card";
 import { SubmitIdeaDialog } from "@/components/board/submit-idea-dialog";
 import { Input } from "@/components/ui/input";
+import { useAuthProfile } from "@/hooks/use-auth-profile";
 import {
   createPost,
   fetchPostsWithVotes,
   toggleVote,
 } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/client";
-import { useAuthProfile } from "@/hooks/use-auth-profile";
-import type { Post } from "@/types/database";
+import { cn } from "@/lib/utils";
+import {
+  POST_STATUSES,
+  STATUS_META,
+  type Post,
+  type PostStatus,
+} from "@/types/database";
 
 export function PublicBoard() {
   const supabase = createClient();
   const { user, profile } = useAuthProfile();
   const [posts, setPosts] = useState<Post[]>([]);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<PostStatus | "all">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -47,14 +54,18 @@ export function PublicBoard() {
     const normalized = query.trim().toLowerCase();
     return [...posts]
       .filter((post) => {
+        if (statusFilter !== "all" && post.status !== statusFilter) {
+          return false;
+        }
         if (!normalized) return true;
         return (
           post.title.toLowerCase().includes(normalized) ||
-          post.description.toLowerCase().includes(normalized)
+          post.description.toLowerCase().includes(normalized) ||
+          post.tags.some((tag) => tag.toLowerCase().includes(normalized))
         );
       })
       .sort((a, b) => b.vote_count - a.vote_count);
-  }, [posts, query]);
+  }, [posts, query, statusFilter]);
 
   const totalVotes = posts.reduce((sum, post) => sum + post.vote_count, 0);
 
@@ -105,7 +116,11 @@ export function PublicBoard() {
     }
   }
 
-  async function handleSubmitIdea(title: string, description: string) {
+  async function handleSubmitIdea(
+    title: string,
+    description: string,
+    tags: string[]
+  ) {
     setActionError(null);
 
     if (!user) {
@@ -118,6 +133,7 @@ export function PublicBoard() {
         title,
         description,
         authorId: user.id,
+        tags,
       });
 
       setPosts((prev) => [
@@ -130,6 +146,7 @@ export function PublicBoard() {
           author_name: profile?.display_name ?? "You",
           vote_count: 0,
           created_at: created.created_at,
+          tags: created.tags ?? tags,
           has_voted: false,
         },
         ...prev,
@@ -168,6 +185,9 @@ export function PublicBoard() {
             <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 tabular-nums">
               {totalVotes} votes
             </span>
+            <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 tabular-nums">
+              {sortedPosts.length} showing
+            </span>
           </div>
 
           <div className="relative">
@@ -175,10 +195,46 @@ export function PublicBoard() {
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search requests..."
+              placeholder="Search requests or tags..."
               className="border-slate-200 bg-white/80 pl-8"
               aria-label="Search feature requests"
             />
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                statusFilter === "all"
+                  ? "bg-slate-900 text-white"
+                  : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+              )}
+            >
+              All
+            </button>
+            {POST_STATUSES.map((status) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setStatusFilter(status)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  statusFilter === status
+                    ? "bg-slate-900 text-white"
+                    : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+                )}
+              >
+                <span
+                  className={cn(
+                    "size-1.5 rounded-full",
+                    STATUS_META[status].accent
+                  )}
+                />
+                {STATUS_META[status].label}
+              </button>
+            ))}
           </div>
 
           {actionError ? (
@@ -202,8 +258,8 @@ export function PublicBoard() {
             </div>
           ) : sortedPosts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white/50 px-6 py-14 text-center text-sm text-slate-500">
-              {query
-                ? "No requests match your search."
+              {query || statusFilter !== "all"
+                ? "No requests match your filters."
                 : "No requests yet. Sign in and submit the first idea."}
             </div>
           ) : (

@@ -105,14 +105,15 @@ BEGIN
   SET display_name = 'Alex Member'
   WHERE id = member_id;
 
-  INSERT INTO posts (id, title, description, status, author_id, created_at) VALUES
+  INSERT INTO posts (id, title, description, status, author_id, created_at, tags) VALUES
     (
       post1,
       'Dark mode for the entire dashboard',
       'Add a system-aware dark theme so teams can work comfortably in low-light environments.',
       'planned',
       member_id,
-      timezone('utc', now()) - INTERVAL '20 days'
+      timezone('utc', now()) - INTERVAL '20 days',
+      ARRAY['ui']
     ),
     (
       post2,
@@ -120,7 +121,8 @@ BEGIN
       'When a user types a new idea, suggest similar existing requests to reduce duplicates.',
       'in-progress',
       admin_id,
-      timezone('utc', now()) - INTERVAL '14 days'
+      timezone('utc', now()) - INTERVAL '14 days',
+      ARRAY['ai']
     ),
     (
       post3,
@@ -128,7 +130,8 @@ BEGIN
       'Notify voters in Slack when an idea they upvoted moves to Planned, In Progress, or Done.',
       'idea',
       member_id,
-      timezone('utc', now()) - INTERVAL '10 days'
+      timezone('utc', now()) - INTERVAL '10 days',
+      ARRAY['integrations', 'notifications']
     ),
     (
       post4,
@@ -136,7 +139,8 @@ BEGIN
       'Allow products to embed a read-only roadmap on their marketing site via a simple script tag.',
       'idea',
       member_id,
-      timezone('utc', now()) - INTERVAL '6 days'
+      timezone('utc', now()) - INTERVAL '6 days',
+      ARRAY['integrations']
     ),
     (
       post5,
@@ -144,7 +148,8 @@ BEGIN
       'Admins should be able to export all posts with vote counts and status for quarterly planning.',
       'done',
       admin_id,
-      timezone('utc', now()) - INTERVAL '30 days'
+      timezone('utc', now()) - INTERVAL '30 days',
+      ARRAY['admin', 'integrations']
     );
 
   INSERT INTO votes (post_id, user_id) VALUES

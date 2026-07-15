@@ -16,6 +16,7 @@ export type Post = {
   author_name: string;
   vote_count: number;
   created_at: string;
+  tags: string[];
   has_voted?: boolean;
 };
 

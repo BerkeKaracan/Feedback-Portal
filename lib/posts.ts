@@ -51,13 +51,19 @@ export async function fetchPostsWithVotes(
       `User ${post.author_id.slice(0, 8)}`,
     vote_count: voteCountByPost.get(post.id) ?? 0,
     created_at: post.created_at,
+    tags: post.tags ?? [],
     has_voted: votedPostIds.has(post.id),
   }));
 }
 
 export async function createPost(
   supabase: Client,
-  input: { title: string; description: string; authorId: string }
+  input: {
+    title: string;
+    description: string;
+    authorId: string;
+    tags?: string[];
+  }
 ) {
   const { data, error } = await supabase
     .from("posts")
@@ -66,6 +72,7 @@ export async function createPost(
       description: input.description,
       author_id: input.authorId,
       status: "idea",
+      tags: input.tags ?? [],
     })
     .select("*")
     .single();

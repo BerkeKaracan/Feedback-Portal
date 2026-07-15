@@ -1,5 +1,6 @@
 "use client";
 
+import { TagChips } from "@/components/board/tag-chips";
 import { formatRelativeDate } from "@/lib/format";
 import type { Post } from "@/types/database";
 
@@ -30,6 +31,7 @@ export function FeatureCard({ post, onToggleVote }: FeatureCardProps) {
         <p className="line-clamp-2 text-sm leading-relaxed text-slate-500">
           {post.description}
         </p>
+        <TagChips tags={post.tags} />
         <p className="text-xs text-slate-400">
           {post.author_name} · {formatRelativeDate(post.created_at)}
         </p>

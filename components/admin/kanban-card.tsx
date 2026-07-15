@@ -3,6 +3,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import { ChevronUp, GripVertical } from "lucide-react";
 
+import { TagChips } from "@/components/board/tag-chips";
 import { formatRelativeDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Post } from "@/types/database";
@@ -60,6 +61,7 @@ export function KanbanCard({ post, isOverlay, onOpen }: KanbanCardProps) {
           <p className="line-clamp-2 text-xs leading-relaxed text-slate-500">
             {post.description}
           </p>
+          <TagChips tags={post.tags.slice(0, 3)} />
           <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
             <span className="truncate">{post.author_name}</span>
             <span className="shrink-0 tabular-nums">

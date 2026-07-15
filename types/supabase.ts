@@ -38,6 +38,7 @@ export type Database = {
           status: "idea" | "planned" | "in-progress" | "done";
           author_id: string;
           created_at: string;
+          tags: string[];
         };
         Insert: {
           id?: string;
@@ -46,6 +47,7 @@ export type Database = {
           status?: "idea" | "planned" | "in-progress" | "done";
           author_id: string;
           created_at?: string;
+          tags?: string[];
         };
         Update: {
           id?: string;
@@ -54,6 +56,7 @@ export type Database = {
           status?: "idea" | "planned" | "in-progress" | "done";
           author_id?: string;
           created_at?: string;
+          tags?: string[];
         };
         Relationships: [];
       };
