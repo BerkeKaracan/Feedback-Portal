@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LoaderCircle, Plus, Sparkles } from "lucide-react";
+import { ChevronUp, LoaderCircle, Plus, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,16 +16,22 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { AnalyzeIdeaResponse } from "@/lib/ai/types";
+import { cn } from "@/lib/utils";
 
 type SubmitIdeaDialogProps = {
   onSubmit: (title: string, description: string, tags: string[]) => void;
+  onUpvoteExisting?: (postId: string) => void;
 };
 
-export function SubmitIdeaDialog({ onSubmit }: SubmitIdeaDialogProps) {
+export function SubmitIdeaDialog({
+  onSubmit,
+  onUpvoteExisting,
+}: SubmitIdeaDialogProps) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [analysis, setAnalysis] = useState<AnalyzeIdeaResponse | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
 
@@ -37,6 +43,7 @@ export function SubmitIdeaDialog({ onSubmit }: SubmitIdeaDialogProps) {
 
     if (trimmedTitle.length < 4 || trimmedDescription.length < 8) {
       setAnalysis(null);
+      setSelectedTags([]);
       setAnalyzeError(null);
       return;
     }
@@ -63,9 +70,11 @@ export function SubmitIdeaDialog({ onSubmit }: SubmitIdeaDialogProps) {
 
         const data = (await response.json()) as AnalyzeIdeaResponse;
         setAnalysis(data);
+        setSelectedTags(data.tags);
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
         setAnalysis(null);
+        setSelectedTags([]);
         setAnalyzeError("Could not analyze this idea right now.");
       } finally {
         setAnalyzing(false);
@@ -78,16 +87,25 @@ export function SubmitIdeaDialog({ onSubmit }: SubmitIdeaDialogProps) {
     };
   }, [description, open, title]);
 
+  function toggleTag(tag: string) {
+    setSelectedTags((current) =>
+      current.includes(tag)
+        ? current.filter((item) => item !== tag)
+        : [...current, tag]
+    );
+  }
+
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     const trimmedTitle = title.trim();
     const trimmedDescription = description.trim();
     if (!trimmedTitle || !trimmedDescription) return;
 
-    onSubmit(trimmedTitle, trimmedDescription, analysis?.tags ?? []);
+    onSubmit(trimmedTitle, trimmedDescription, selectedTags);
     setTitle("");
     setDescription("");
     setAnalysis(null);
+    setSelectedTags([]);
     setOpen(false);
   }
 
@@ -106,8 +124,8 @@ export function SubmitIdeaDialog({ onSubmit }: SubmitIdeaDialogProps) {
           <DialogHeader>
             <DialogTitle>Submit a feature request</DialogTitle>
             <DialogDescription>
-              Share an idea. AI suggestions appear as you type (local stub for
-              now).
+              AI suggests tags and similar requests as you type. Toggle tags
+              before submitting.
             </DialogDescription>
           </DialogHeader>
 
@@ -152,20 +170,30 @@ export function SubmitIdeaDialog({ onSubmit }: SubmitIdeaDialogProps) {
               ) : null}
 
               {!analyzing && !analyzeError && analysis ? (
-                <div className="space-y-2 text-xs text-slate-600">
+                <div className="space-y-3 text-xs text-slate-600">
                   <div>
                     <p className="mb-1 font-medium text-slate-700">
                       Suggested tags
                     </p>
                     <div className="flex flex-wrap gap-1.5">
-                      {analysis.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full bg-white px-2 py-0.5 text-[11px] text-slate-600 ring-1 ring-slate-200"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+                      {analysis.tags.map((tag) => {
+                        const active = selectedTags.includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => toggleTag(tag)}
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[11px] ring-1 transition-colors",
+                              active
+                                ? "bg-slate-900 text-white ring-slate-900"
+                                : "bg-white text-slate-500 ring-slate-200"
+                            )}
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -184,10 +212,28 @@ export function SubmitIdeaDialog({ onSubmit }: SubmitIdeaDialogProps) {
                             key={item.postId}
                             className="flex items-center justify-between gap-2 rounded-lg bg-white/80 px-2 py-1.5 ring-1 ring-slate-200/80"
                           >
-                            <span className="truncate">{item.title}</span>
-                            <span className="shrink-0 tabular-nums text-slate-400">
-                              {Math.round(item.score * 100)}%
-                            </span>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium text-slate-700">
+                                {item.title}
+                              </p>
+                              <p className="tabular-nums text-slate-400">
+                                {Math.round(item.score * 100)}% match
+                              </p>
+                            </div>
+                            {onUpvoteExisting ? (
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="outline"
+                                onClick={() => {
+                                  onUpvoteExisting(item.postId);
+                                  setOpen(false);
+                                }}
+                              >
+                                <ChevronUp data-icon="inline-start" />
+                                Upvote
+                              </Button>
+                            ) : null}
                           </li>
                         ))}
                       </ul>

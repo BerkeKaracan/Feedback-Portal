@@ -19,7 +19,12 @@ import { KanbanCard } from "@/components/admin/kanban-card";
 import { KanbanColumn } from "@/components/admin/kanban-column";
 import { RequestDetailSheet } from "@/components/admin/request-detail-sheet";
 import { Button } from "@/components/ui/button";
-import { fetchPostsWithVotes, updatePostStatus } from "@/lib/posts";
+import {
+  deletePost,
+  fetchPostsWithVotes,
+  updatePostStatus,
+  updatePostTags,
+} from "@/lib/posts";
 import { createClient } from "@/lib/supabase/client";
 import { useKanbanStore } from "@/stores/kanban-store";
 import {
@@ -45,6 +50,8 @@ export function KanbanBoard() {
   const posts = useKanbanStore((state) => state.posts);
   const setPosts = useKanbanStore((state) => state.setPosts);
   const movePost = useKanbanStore((state) => state.movePost);
+  const updateTagsLocal = useKanbanStore((state) => state.updatePostTags);
+  const removePostLocal = useKanbanStore((state) => state.removePost);
   const [activePost, setActivePost] = useState<Post | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -267,6 +274,15 @@ export function KanbanBoard() {
         onOpenChange={setDetailOpen}
         onStatusChange={(postId, status) => {
           void persistStatusChange(postId, status);
+        }}
+        onTagsChange={async (postId, tags) => {
+          const cleaned = await updatePostTags(supabase, postId, tags);
+          updateTagsLocal(postId, cleaned.tags ?? tags);
+        }}
+        onDelete={async (postId) => {
+          await deletePost(supabase, postId);
+          removePostLocal(postId);
+          setSelectedPostId(null);
         }}
       />
     </div>

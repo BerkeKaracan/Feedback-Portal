@@ -42,9 +42,9 @@ export function FeatureCard({ post, onToggleVote, onOpen }: FeatureCardProps) {
           <span>
             {post.author_name} · {formatRelativeDate(post.created_at)}
           </span>
-          <span className="inline-flex items-center gap-1 text-slate-400 transition-colors group-hover:text-slate-600">
+          <span className="inline-flex items-center gap-1 tabular-nums text-slate-400 transition-colors group-hover:text-slate-600">
             <MessageSquare className="size-3.5" />
-            Discuss
+            {post.comment_count}
           </span>
         </div>
       </button>

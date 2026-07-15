@@ -156,10 +156,11 @@ export function PublicBoard() {
           status: created.status,
           author_id: created.author_id,
           author_name: profile?.display_name ?? "You",
-          vote_count: 0,
+          vote_count: 1,
+          comment_count: 0,
           created_at: created.created_at,
           tags: created.tags ?? tags,
-          has_voted: false,
+          has_voted: true,
         },
         ...prev,
       ]);
@@ -192,7 +193,14 @@ export function PublicBoard() {
                 one. The team triages everything on the admin roadmap.
               </p>
             </div>
-            <SubmitIdeaDialog onSubmit={handleSubmitIdea} />
+            <SubmitIdeaDialog
+              onSubmit={handleSubmitIdea}
+              onUpvoteExisting={(postId) => {
+                const current = posts.find((post) => post.id === postId);
+                if (current?.has_voted) return;
+                void handleToggleVote(postId);
+              }}
+            />
           </div>
 
           <div className="flex flex-wrap gap-2 text-xs text-slate-500">

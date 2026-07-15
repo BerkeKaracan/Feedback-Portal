@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/client";
@@ -12,15 +12,11 @@ export function useAuthProfile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadProfile(nextUser: User | null) {
+  const loadProfile = useCallback(
+    async (nextUser: User | null) => {
       if (!nextUser) {
-        if (mounted) {
-          setProfile(null);
-          setLoading(false);
-        }
+        setProfile(null);
+        setLoading(false);
         return;
       }
 
@@ -30,11 +26,14 @@ export function useAuthProfile() {
         .eq("id", nextUser.id)
         .maybeSingle();
 
-      if (mounted) {
-        setProfile(data);
-        setLoading(false);
-      }
-    }
+      setProfile(data);
+      setLoading(false);
+    },
+    [supabase]
+  );
+
+  useEffect(() => {
+    let mounted = true;
 
     supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return;
@@ -55,7 +54,17 @@ export function useAuthProfile() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [loadProfile, supabase.auth]);
 
-  return { user, profile, loading, isAdmin: Boolean(profile?.is_admin) };
+  function refreshProfile(next: Profile | null) {
+    setProfile(next);
+  }
+
+  return {
+    user,
+    profile,
+    loading,
+    isAdmin: Boolean(profile?.is_admin),
+    refreshProfile,
+  };
 }

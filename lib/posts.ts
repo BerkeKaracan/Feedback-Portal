@@ -13,15 +13,18 @@ export async function fetchPostsWithVotes(
     { data: posts, error: postsError },
     { data: votes, error: votesError },
     { data: profiles, error: profilesError },
+    { data: comments, error: commentsError },
   ] = await Promise.all([
     supabase.from("posts").select("*").order("created_at", { ascending: false }),
     supabase.from("votes").select("post_id, user_id"),
     supabase.from("profiles").select("id, display_name"),
+    supabase.from("comments").select("post_id"),
   ]);
 
   if (postsError) throw postsError;
   if (votesError) throw votesError;
   if (profilesError) throw profilesError;
+  if (commentsError) throw commentsError;
 
   const displayNameById = new Map(
     (profiles ?? []).map((profile) => [profile.id, profile.display_name])
@@ -29,6 +32,7 @@ export async function fetchPostsWithVotes(
 
   const voteCountByPost = new Map<string, number>();
   const votedPostIds = new Set<string>();
+  const commentCountByPost = new Map<string, number>();
 
   for (const vote of votes ?? []) {
     voteCountByPost.set(
@@ -38,6 +42,13 @@ export async function fetchPostsWithVotes(
     if (userId && vote.user_id === userId) {
       votedPostIds.add(vote.post_id);
     }
+  }
+
+  for (const comment of comments ?? []) {
+    commentCountByPost.set(
+      comment.post_id,
+      (commentCountByPost.get(comment.post_id) ?? 0) + 1
+    );
   }
 
   return (posts ?? []).map((post) => ({
@@ -50,6 +61,7 @@ export async function fetchPostsWithVotes(
       displayNameById.get(post.author_id) ??
       `User ${post.author_id.slice(0, 8)}`,
     vote_count: voteCountByPost.get(post.id) ?? 0,
+    comment_count: commentCountByPost.get(post.id) ?? 0,
     created_at: post.created_at,
     tags: post.tags ?? [],
     has_voted: votedPostIds.has(post.id),
@@ -78,6 +90,14 @@ export async function createPost(
     .single();
 
   if (error) throw error;
+
+  // Author auto-upvotes their own request
+  const { error: voteError } = await supabase.from("votes").insert({
+    post_id: data.id,
+    user_id: input.authorId,
+  });
+  if (voteError) throw voteError;
+
   return data;
 }
 
@@ -113,4 +133,52 @@ export async function updatePostStatus(
     .eq("id", postId);
 
   if (error) throw error;
+}
+
+export async function updatePostTags(
+  supabase: Client,
+  postId: string,
+  tags: string[]
+) {
+  const cleaned = [
+    ...new Set(
+      tags
+        .map((tag) => tag.trim().toLowerCase())
+        .filter((tag) => tag.length > 0)
+    ),
+  ];
+
+  const { data, error } = await supabase
+    .from("posts")
+    .update({ tags: cleaned })
+    .eq("id", postId)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deletePost(supabase: Client, postId: string) {
+  const { error } = await supabase.from("posts").delete().eq("id", postId);
+  if (error) throw error;
+}
+
+export async function updateDisplayName(
+  supabase: Client,
+  userId: string,
+  displayName: string
+) {
+  const trimmed = displayName.trim();
+  if (!trimmed) throw new Error("Display name is required");
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ display_name: trimmed })
+    .eq("id", userId)
+    .select("id, display_name, is_admin, created_at")
+    .single();
+
+  if (error) throw error;
+  return data;
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronUp } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronUp, Trash2, X } from "lucide-react";
 
 import { StatusBadge } from "@/components/board/status-badge";
-import { TagChips } from "@/components/board/tag-chips";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -26,6 +27,8 @@ type RequestDetailSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusChange: (postId: string, status: PostStatus) => void;
+  onTagsChange: (postId: string, tags: string[]) => Promise<void> | void;
+  onDelete: (postId: string) => Promise<void> | void;
 };
 
 export function RequestDetailSheet({
@@ -33,7 +36,72 @@ export function RequestDetailSheet({
   open,
   onOpenChange,
   onStatusChange,
+  onTagsChange,
+  onDelete,
 }: RequestDetailSheetProps) {
+  const [tagDraft, setTagDraft] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [savingTags, setSavingTags] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (post) {
+      setTags(post.tags);
+      setTagDraft("");
+      setError(null);
+    }
+  }, [post]);
+
+  async function persistTags(nextTags: string[]) {
+    if (!post) return;
+    setSavingTags(true);
+    setError(null);
+    try {
+      await onTagsChange(post.id, nextTags);
+      setTags(nextTags);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update tags");
+    } finally {
+      setSavingTags(false);
+    }
+  }
+
+  function handleAddTag(event: React.FormEvent) {
+    event.preventDefault();
+    const next = tagDraft.trim().toLowerCase();
+    if (!next || tags.includes(next)) {
+      setTagDraft("");
+      return;
+    }
+    const nextTags = [...tags, next];
+    setTagDraft("");
+    void persistTags(nextTags);
+  }
+
+  function handleRemoveTag(tag: string) {
+    void persistTags(tags.filter((item) => item !== tag));
+  }
+
+  async function handleDelete() {
+    if (!post) return;
+    const confirmed = window.confirm(
+      `Delete “${post.title}”? This also removes votes and comments.`
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError(null);
+    try {
+      await onDelete(post.id);
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete post");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -49,7 +117,7 @@ export function RequestDetailSheet({
                   {post.title}
                 </SheetTitle>
                 <SheetDescription className="mt-2 text-sm leading-relaxed text-slate-500">
-                  Review the request, then move it to the right stage in your
+                  Review the request, edit tags, or move it through the
                   pipeline.
                 </SheetDescription>
               </div>
@@ -96,14 +164,46 @@ export function RequestDetailSheet({
                 </p>
               </section>
 
-              {post.tags.length > 0 ? (
-                <section className="space-y-2">
-                  <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">
-                    Tags
-                  </h3>
-                  <TagChips tags={post.tags} size="md" />
-                </section>
-              ) : null}
+              <section className="space-y-2">
+                <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                  Tags
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {tags.length === 0 ? (
+                    <p className="text-xs text-slate-400">No tags yet.</p>
+                  ) : (
+                    tags.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        disabled={savingTags}
+                        className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200"
+                      >
+                        {tag}
+                        <X className="size-3" />
+                      </button>
+                    ))
+                  )}
+                </div>
+                <form onSubmit={handleAddTag} className="flex gap-2">
+                  <Input
+                    value={tagDraft}
+                    onChange={(event) => setTagDraft(event.target.value)}
+                    placeholder="Add tag..."
+                    className="h-8"
+                    disabled={savingTags}
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="outline"
+                    disabled={savingTags || !tagDraft.trim()}
+                  >
+                    Add
+                  </Button>
+                </form>
+              </section>
 
               <section className="space-y-2">
                 <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">
@@ -146,6 +246,22 @@ export function RequestDetailSheet({
                     );
                   })}
                 </div>
+              </section>
+
+              <section className="space-y-2 border-t border-slate-100 pt-4">
+                {error ? (
+                  <p className="text-xs text-destructive">{error}</p>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="w-full"
+                  disabled={deleting}
+                  onClick={() => void handleDelete()}
+                >
+                  <Trash2 data-icon="inline-start" />
+                  {deleting ? "Deleting..." : "Delete request"}
+                </Button>
               </section>
             </div>
           </div>

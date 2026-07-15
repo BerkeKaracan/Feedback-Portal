@@ -15,6 +15,7 @@ export type Post = {
   author_id: string;
   author_name: string;
   vote_count: number;
+  comment_count: number;
   created_at: string;
   tags: string[];
   has_voted?: boolean;

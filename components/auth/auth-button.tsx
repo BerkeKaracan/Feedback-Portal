@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LogIn, LogOut } from "lucide-react";
+import { LogIn, LogOut, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,15 +15,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
+import { updateDisplayName } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/client";
 
 export function AuthButton() {
   const supabase = createClient();
-  const { user, profile } = useAuthProfile();
+  const { user, profile, refreshProfile } = useAuthProfile();
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -57,17 +60,87 @@ export function AuthButton() {
     setPassword("");
   }
 
+  async function handleProfileSave(event: React.FormEvent) {
+    event.preventDefault();
+    if (!user) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const next = await updateDisplayName(supabase, user.id, displayName);
+      refreshProfile(next);
+      setProfileOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update name");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
   }
 
   if (user) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="hidden max-w-40 truncate text-xs text-slate-500 sm:inline">
-          {profile?.display_name ?? user.email}
-          {profile?.is_admin ? " · Admin" : ""}
-        </span>
+      <div className="flex items-center gap-1">
+        <Dialog
+          open={profileOpen}
+          onOpenChange={(next) => {
+            setProfileOpen(next);
+            setError(null);
+            if (next) setDisplayName(profile?.display_name ?? "");
+          }}
+        >
+          <DialogTrigger
+            render={<Button variant="ghost" size="sm" className="max-w-44" />}
+          >
+            <UserRound data-icon="inline-start" />
+            <span className="truncate">
+              {profile?.display_name ?? user.email}
+              {profile?.is_admin ? " · Admin" : ""}
+            </span>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <form onSubmit={handleProfileSave}>
+              <DialogHeader>
+                <DialogTitle>Edit profile</DialogTitle>
+                <DialogDescription>
+                  Update how your name appears on requests and comments.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-1.5 py-4">
+                <label htmlFor="display-name" className="text-sm font-medium">
+                  Display name
+                </label>
+                <Input
+                  id="display-name"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  maxLength={40}
+                  required
+                />
+                {error ? (
+                  <p className="text-sm text-destructive">{error}</p>
+                ) : null}
+              </div>
+              <DialogFooter showCloseButton={false}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setProfileOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Saving..." : "Save"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
         <Button variant="ghost" size="sm" onClick={handleSignOut}>
           <LogOut data-icon="inline-start" />
           Sign out

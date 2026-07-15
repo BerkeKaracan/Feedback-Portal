@@ -6,6 +6,8 @@ type KanbanState = {
   posts: Post[];
   setPosts: (posts: Post[]) => void;
   movePost: (postId: string, status: PostStatus) => void;
+  updatePostTags: (postId: string, tags: string[]) => void;
+  removePost: (postId: string) => void;
   getPostsByStatus: (status: PostStatus) => Post[];
 };
 
@@ -17,6 +19,16 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       posts: state.posts.map((post) =>
         post.id === postId ? { ...post, status } : post
       ),
+    })),
+  updatePostTags: (postId, tags) =>
+    set((state) => ({
+      posts: state.posts.map((post) =>
+        post.id === postId ? { ...post, tags } : post
+      ),
+    })),
+  removePost: (postId) =>
+    set((state) => ({
+      posts: state.posts.filter((post) => post.id !== postId),
     })),
   getPostsByStatus: (status) =>
     get()
