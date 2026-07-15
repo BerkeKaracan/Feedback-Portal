@@ -160,4 +160,24 @@ BEGIN
     (post3, member_id),
     (post4, admin_id),
     (post5, member_id);
+
+  INSERT INTO comments (post_id, user_id, content, created_at) VALUES
+    (
+      post2,
+      member_id,
+      'This would save us so much triage time. Happy to beta test.',
+      timezone('utc', now()) - INTERVAL '3 days'
+    ),
+    (
+      post2,
+      admin_id,
+      'Agreed — we are wiring the heuristic stub first, then a Python service.',
+      timezone('utc', now()) - INTERVAL '2 days'
+    ),
+    (
+      post3,
+      admin_id,
+      'We will prioritize Slack once the public board comment thread ships.',
+      timezone('utc', now()) - INTERVAL '1 day'
+    );
 END $$;

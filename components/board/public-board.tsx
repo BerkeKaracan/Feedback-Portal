@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
 
+import { BoardToolbar } from "@/components/board/board-toolbar";
 import { FeatureCard } from "@/components/board/feature-card";
+import { PostDetailSheet } from "@/components/board/post-detail-sheet";
 import { SubmitIdeaDialog } from "@/components/board/submit-idea-dialog";
-import { Input } from "@/components/ui/input";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
 import {
   createPost,
@@ -13,20 +13,17 @@ import {
   toggleVote,
 } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
-import {
-  POST_STATUSES,
-  STATUS_META,
-  type Post,
-  type PostStatus,
-} from "@/types/database";
+import type { BoardSort, Post, PostStatus } from "@/types/database";
 
 export function PublicBoard() {
   const supabase = createClient();
   const { user, profile } = useAuthProfile();
   const [posts, setPosts] = useState<Post[]>([]);
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<BoardSort>("top");
   const [statusFilter, setStatusFilter] = useState<PostStatus | "all">("all");
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -52,20 +49,35 @@ export function PublicBoard() {
 
   const sortedPosts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return [...posts]
-      .filter((post) => {
-        if (statusFilter !== "all" && post.status !== statusFilter) {
-          return false;
-        }
-        if (!normalized) return true;
+    const filtered = posts.filter((post) => {
+      if (statusFilter !== "all" && post.status !== statusFilter) {
+        return false;
+      }
+      if (!normalized) return true;
+      return (
+        post.title.toLowerCase().includes(normalized) ||
+        post.description.toLowerCase().includes(normalized) ||
+        post.tags.some((tag) => tag.toLowerCase().includes(normalized))
+      );
+    });
+
+    return filtered.sort((a, b) => {
+      if (sort === "newest") {
         return (
-          post.title.toLowerCase().includes(normalized) ||
-          post.description.toLowerCase().includes(normalized) ||
-          post.tags.some((tag) => tag.toLowerCase().includes(normalized))
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
-      })
-      .sort((a, b) => b.vote_count - a.vote_count);
-  }, [posts, query, statusFilter]);
+      }
+      if (b.vote_count !== a.vote_count) {
+        return b.vote_count - a.vote_count;
+      }
+      return (
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    });
+  }, [posts, query, sort, statusFilter]);
+
+  const selectedPost =
+    posts.find((post) => post.id === selectedPostId) ?? null;
 
   const totalVotes = posts.reduce((sum, post) => sum + post.vote_count, 0);
 
@@ -156,6 +168,11 @@ export function PublicBoard() {
     }
   }
 
+  function handleOpenPost(post: Post) {
+    setSelectedPostId(post.id);
+    setDetailOpen(true);
+  }
+
   return (
     <div className="public-canvas relative flex-1">
       <div className="pointer-events-none absolute inset-0 admin-grid opacity-30" />
@@ -171,8 +188,8 @@ export function PublicBoard() {
                 What should we build?
               </h1>
               <p className="max-w-xl text-sm leading-relaxed text-slate-600">
-                Vote on the ideas that matter, or pitch a new one. The team
-                triages everything on the admin roadmap.
+                Vote on the ideas that matter, discuss details, or pitch a new
+                one. The team triages everything on the admin roadmap.
               </p>
             </div>
             <SubmitIdeaDialog onSubmit={handleSubmitIdea} />
@@ -185,57 +202,18 @@ export function PublicBoard() {
             <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 tabular-nums">
               {totalVotes} votes
             </span>
-            <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 tabular-nums">
-              {sortedPosts.length} showing
-            </span>
           </div>
 
-          <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search requests or tags..."
-              className="border-slate-200 bg-white/80 pl-8"
-              aria-label="Search feature requests"
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setStatusFilter("all")}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                statusFilter === "all"
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-              )}
-            >
-              All
-            </button>
-            {POST_STATUSES.map((status) => (
-              <button
-                key={status}
-                type="button"
-                onClick={() => setStatusFilter(status)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                  statusFilter === status
-                    ? "bg-slate-900 text-white"
-                    : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-                )}
-              >
-                <span
-                  className={cn(
-                    "size-1.5 rounded-full",
-                    STATUS_META[status].accent
-                  )}
-                />
-                {STATUS_META[status].label}
-              </button>
-            ))}
-          </div>
+          <BoardToolbar
+            query={query}
+            onQueryChange={setQuery}
+            sort={sort}
+            onSortChange={setSort}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            visibleCount={sortedPosts.length}
+            totalCount={posts.length}
+          />
 
           {actionError ? (
             <p className="text-sm text-destructive">{actionError}</p>
@@ -269,12 +247,23 @@ export function PublicBoard() {
                 className="animate-board-in"
                 style={{ animationDelay: `${index * 40}ms` }}
               >
-                <FeatureCard post={post} onToggleVote={handleToggleVote} />
+                <FeatureCard
+                  post={post}
+                  onToggleVote={handleToggleVote}
+                  onOpen={handleOpenPost}
+                />
               </div>
             ))
           )}
         </section>
       </div>
+
+      <PostDetailSheet
+        post={selectedPost}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onToggleVote={handleToggleVote}
+      />
     </div>
   );
 }

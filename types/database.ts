@@ -26,6 +26,18 @@ export type Vote = {
   user_id: string;
 };
 
+export type Comment = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  author_name: string;
+  is_admin: boolean;
+};
+
+export type BoardSort = "top" | "newest";
+
 export const POST_STATUSES: PostStatus[] = [
   "idea",
   "planned",
