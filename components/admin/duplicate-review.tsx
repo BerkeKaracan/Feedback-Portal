@@ -33,9 +33,13 @@ type DuplicateGroup = {
 
 type DuplicateReviewProps = {
   onMerged: () => Promise<void> | void;
+  projectId?: string | null;
 };
 
-export function DuplicateReview({ onMerged }: DuplicateReviewProps) {
+export function DuplicateReview({
+  onMerged,
+  projectId = null,
+}: DuplicateReviewProps) {
   const [groups, setGroups] = useState<DuplicateGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [mergingGroupId, setMergingGroupId] = useState<string | null>(null);
@@ -51,7 +55,12 @@ export function DuplicateReview({ onMerged }: DuplicateReviewProps) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/search/duplicates");
+      const params = new URLSearchParams();
+      if (projectId) params.set("projectId", projectId);
+      const query = params.toString();
+      const response = await fetch(
+        query ? `/api/search/duplicates?${query}` : "/api/search/duplicates"
+      );
       const data = (await response.json()) as {
         groups?: DuplicateGroup[];
         error?: string;
@@ -77,7 +86,8 @@ export function DuplicateReview({ onMerged }: DuplicateReviewProps) {
 
   useEffect(() => {
     void load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when tenant board changes
+  }, [projectId]);
 
   function togglePost(group: DuplicateGroup, postId: string) {
     if (postId === canonicalIds[group.id]) return;

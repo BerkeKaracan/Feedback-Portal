@@ -22,6 +22,7 @@ type PostDetailSheetProps = {
   onOpenChange: (open: boolean) => void;
   onToggleVote: (postId: string) => void;
   onCommentCountChange?: (postId: string, delta: number) => void;
+  allowComments?: boolean;
 };
 
 export function PostDetailSheet({
@@ -30,6 +31,7 @@ export function PostDetailSheet({
   onOpenChange,
   onToggleVote,
   onCommentCountChange,
+  allowComments = true,
 }: PostDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -75,13 +77,15 @@ export function PostDetailSheet({
                 </Button>
               </section>
 
-              <CommentThread
-                postId={post.id}
-                open={open}
-                onCountChange={(delta) =>
-                  onCommentCountChange?.(post.id, delta)
-                }
-              />
+              {allowComments ? (
+                <CommentThread
+                  postId={post.id}
+                  open={open}
+                  onCountChange={(delta) =>
+                    onCommentCountChange?.(post.id, delta)
+                  }
+                />
+              ) : null}
             </div>
           </div>
         ) : null}

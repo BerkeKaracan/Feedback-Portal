@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { LayoutDashboard, Sparkles } from "lucide-react";
 
 import { AuthButton } from "@/components/auth/auth-button";
+import { useTenant } from "@/components/tenant/tenant-provider";
 import { buttonVariants } from "@/components/ui/button";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
 import { cn } from "@/lib/utils";
@@ -13,24 +14,50 @@ export function SiteHeader() {
   const pathname = usePathname();
   const onAdmin = pathname.startsWith("/admin");
   const { isAdmin, loading: authLoading } = useAuthProfile();
+  const { project, isTenant, hrefWithTenant, error: tenantError } = useTenant();
+
+  const brandName = isTenant ? project!.name : "Feedback Portal";
+  const homeHref = hrefWithTenant("/");
+  const adminHref = hrefWithTenant("/admin");
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/75 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link
-          href="/"
-          className="flex items-center gap-2 font-semibold tracking-tight text-slate-900"
-        >
-          <span className="flex size-7 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm">
-            <Sparkles className="size-3.5" />
-          </span>
-          Feedback Portal
-        </Link>
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href={homeHref}
+            className="flex min-w-0 items-center gap-2 font-semibold tracking-tight text-slate-900"
+          >
+            {project?.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element -- tenant logos are arbitrary remote URLs
+              <img
+                src={project.logo_url}
+                alt=""
+                className="size-7 rounded-xl object-cover shadow-sm"
+              />
+            ) : (
+              <span
+                className={cn(
+                  "flex size-7 shrink-0 items-center justify-center rounded-xl text-white shadow-sm",
+                  isTenant ? "bg-(--tenant-primary,#0f766e)" : "bg-slate-900"
+                )}
+              >
+                <Sparkles className="size-3.5" />
+              </span>
+            )}
+            <span className="truncate">{brandName}</span>
+          </Link>
+          {tenantError ? (
+            <span className="hidden truncate text-xs text-amber-700 sm:inline">
+              {tenantError}
+            </span>
+          ) : null}
+        </div>
 
         <nav className="flex items-center gap-1">
           {!authLoading && isAdmin ? (
             <Link
-              href="/admin"
+              href={adminHref}
               className={cn(
                 buttonVariants({
                   variant: onAdmin ? "secondary" : "ghost",

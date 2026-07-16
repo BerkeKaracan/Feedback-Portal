@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { scanDuplicateGroups } from "@/lib/search/duplicates";
 import { createClient } from "@/lib/supabase/server";
 
-async function requireAdmin() {
+async function requireBoardAdmin(projectId: string | null) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -13,13 +13,24 @@ async function requireAdmin() {
     return { supabase, error: "Authentication required", status: 401 } as const;
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .maybeSingle();
+  if (!projectId) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .maybeSingle();
 
-  if (!profile?.is_admin) {
+    if (!profile?.is_admin) {
+      return { supabase, error: "Admin access required", status: 403 } as const;
+    }
+    return { supabase } as const;
+  }
+
+  const { data: allowed } = await supabase.rpc("is_project_admin", {
+    p_project_id: projectId,
+  });
+
+  if (!allowed) {
     return { supabase, error: "Admin access required", status: 403 } as const;
   }
 
@@ -27,15 +38,22 @@ async function requireAdmin() {
 }
 
 // Local duplicate scan (no AI, no quota). Returns clustered groups.
-export async function GET() {
-  const auth = await requireAdmin();
+export async function GET(request: Request) {
+  const projectId = new URL(request.url).searchParams.get("projectId");
+  const auth = await requireBoardAdmin(projectId);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const { data: posts, error } = await auth.supabase
+  let postsQuery = auth.supabase
     .from("posts")
     .select("id, title, description, status");
+
+  postsQuery = projectId
+    ? postsQuery.eq("project_id", projectId)
+    : postsQuery.is("project_id", null);
+
+  const { data: posts, error } = await postsQuery;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -69,11 +87,6 @@ type MergeBody = {
 };
 
 export async function POST(request: Request) {
-  const auth = await requireAdmin();
-  if ("error" in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-
   let body: MergeBody;
   try {
     body = (await request.json()) as MergeBody;
@@ -94,6 +107,25 @@ export async function POST(request: Request) {
       { error: "canonicalPostId and duplicatePostIds are required" },
       { status: 400 }
     );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  const { data: canonical } = await supabase
+    .from("posts")
+    .select("project_id")
+    .eq("id", body.canonicalPostId)
+    .maybeSingle();
+
+  const auth = await requireBoardAdmin(canonical?.project_id ?? null);
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const { error } = await auth.supabase.rpc("merge_duplicate_posts", {

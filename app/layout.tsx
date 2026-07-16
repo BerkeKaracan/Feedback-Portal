@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import { SiteHeader } from "@/components/layout/site-header";
+import { AppShell } from "@/components/tenant/app-shell";
 
 import "./globals.css";
 
@@ -32,8 +32,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col font-sans">
-        <SiteHeader />
-        {children}
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

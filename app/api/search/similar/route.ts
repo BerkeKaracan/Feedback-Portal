@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 type SimilarBody = {
   title?: string;
   description?: string;
+  projectId?: string | null;
 };
 
 // Anonymous-friendly endpoint: keep abuse in check without auth.
@@ -49,16 +50,26 @@ export async function POST(request: Request) {
 
   const title = body.title?.trim() ?? "";
   const description = body.description?.trim() ?? "";
+  const projectId =
+    typeof body.projectId === "string" && body.projectId.trim()
+      ? body.projectId.trim()
+      : null;
 
   if (!title) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
   const supabase = await createClient();
-  const { data: posts, error } = await supabase
+  let postsQuery = supabase
     .from("posts")
     .select("id, title, description, tags, status")
     .order("created_at", { ascending: false });
+
+  postsQuery = projectId
+    ? postsQuery.eq("project_id", projectId)
+    : postsQuery.is("project_id", null);
+
+  const { data: posts, error } = await postsQuery;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

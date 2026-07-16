@@ -20,7 +20,13 @@ import { createClient } from "@/lib/supabase/client";
 
 export function AuthButton() {
   const supabase = createClient();
-  const { user, profile, loading: authLoading, refreshProfile } = useAuthProfile();
+  const {
+    user,
+    profile,
+    loading: authLoading,
+    refreshProfile,
+    isAdmin,
+  } = useAuthProfile();
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -108,7 +114,7 @@ export function AuthButton() {
             <UserRound data-icon="inline-start" />
             <span className="truncate">
               {profile?.display_name ?? user.email}
-              {profile?.is_admin ? " · Admin" : ""}
+              {isAdmin ? " · Admin" : ""}
             </span>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">

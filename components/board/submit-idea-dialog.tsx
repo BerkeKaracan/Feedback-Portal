@@ -33,6 +33,9 @@ type SimilarResponse = {
 type SubmitIdeaDialogProps = {
   signedIn: boolean;
   authLoading?: boolean;
+  /** Scope duplicate checks / tags to a tenant board when set. */
+  projectId?: string | null;
+  enableDuplicateDetection?: boolean;
   onSubmit: (
     title: string,
     description: string,
@@ -44,6 +47,8 @@ type SubmitIdeaDialogProps = {
 export function SubmitIdeaDialog({
   signedIn,
   authLoading = false,
+  projectId = null,
+  enableDuplicateDetection = true,
   onSubmit,
   onUpvoteExisting,
 }: SubmitIdeaDialogProps) {
@@ -68,6 +73,13 @@ export function SubmitIdeaDialog({
     const trimmedTitle = title.trim();
     const trimmedDescription = description.trim();
 
+    if (!enableDuplicateDetection) {
+      setAnalysis(null);
+      setAnalyzeError(null);
+      setAnalyzing(false);
+      return;
+    }
+
     if (trimmedTitle.length < 4) {
       setAnalysis(null);
       if (!tagsTouchedRef.current) setSelectedTags([]);
@@ -87,6 +99,7 @@ export function SubmitIdeaDialog({
           body: JSON.stringify({
             title: trimmedTitle,
             description: trimmedDescription,
+            projectId,
           }),
           signal: controller.signal,
         });
@@ -119,7 +132,7 @@ export function SubmitIdeaDialog({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [description, open, title]);
+  }, [description, enableDuplicateDetection, open, projectId, title]);
 
   function toggleTag(tag: string) {
     tagsTouchedRef.current = true;

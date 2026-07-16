@@ -30,6 +30,63 @@ export type Database = {
         };
         Relationships: [];
       };
+      projects: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          logo_url: string | null;
+          theme_config: Json;
+          custom_features: Json;
+          origin_url: string | null;
+          origin_host: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          name: string;
+          logo_url?: string | null;
+          theme_config?: Json;
+          custom_features?: Json;
+          origin_url?: string | null;
+          origin_host?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          name?: string;
+          logo_url?: string | null;
+          theme_config?: Json;
+          custom_features?: Json;
+          origin_url?: string | null;
+          origin_host?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      project_members: {
+        Row: {
+          project_id: string;
+          user_id: string;
+          role: "admin" | "member";
+          created_at: string;
+        };
+        Insert: {
+          project_id: string;
+          user_id: string;
+          role?: "admin" | "member";
+          created_at?: string;
+        };
+        Update: {
+          project_id?: string;
+          user_id?: string;
+          role?: "admin" | "member";
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       posts: {
         Row: {
           id: string;
@@ -39,6 +96,7 @@ export type Database = {
           author_id: string;
           created_at: string;
           tags: string[];
+          project_id: string | null;
         };
         Insert: {
           id?: string;
@@ -48,6 +106,7 @@ export type Database = {
           author_id: string;
           created_at?: string;
           tags?: string[];
+          project_id?: string | null;
         };
         Update: {
           id?: string;
@@ -57,6 +116,7 @@ export type Database = {
           author_id?: string;
           created_at?: string;
           tags?: string[];
+          project_id?: string | null;
         };
         Relationships: [];
       };
@@ -128,6 +188,7 @@ export type Database = {
           post_title: string;
           post_description: string;
           post_tags?: string[];
+          post_project_id?: string | null;
         };
         Returns: {
           id: string;
@@ -137,6 +198,7 @@ export type Database = {
           author_id: string;
           created_at: string;
           tags: string[];
+          project_id: string | null;
         };
       };
       merge_duplicate_posts: {
@@ -145,6 +207,39 @@ export type Database = {
           duplicate_post_ids: string[];
         };
         Returns: undefined;
+      };
+      connect_project: {
+        Args: {
+          p_origin_url: string;
+          p_name: string;
+          p_slug: string;
+          p_logo_url?: string | null;
+          p_theme_config?: Json;
+          p_custom_features?: Json | null;
+        };
+        Returns: {
+          id: string;
+          slug: string;
+          name: string;
+          logo_url: string | null;
+          theme_config: Json;
+          custom_features: Json;
+          origin_url: string | null;
+          origin_host: string | null;
+          created_at: string;
+        };
+      };
+      claim_project_access: {
+        Args: { p_project_id: string };
+        Returns: string;
+      };
+      is_project_admin: {
+        Args: { p_project_id: string };
+        Returns: boolean;
+      };
+      can_admin_post: {
+        Args: { p_post_id: string };
+        Returns: boolean;
       };
     };
     Enums: Record<string, never>;

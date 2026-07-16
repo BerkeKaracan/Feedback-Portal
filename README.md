@@ -7,7 +7,8 @@ Micro-SaaS for feature requests, upvotes, comments, and an admin Kanban roadmap 
 - Next.js (App Router) + TypeScript
 - Tailwind CSS + shadcn/ui
 - Zustand (admin Kanban)
-- Local Supabase (Auth, Postgres, RLS)
+- Supabase (Auth, Postgres, RLS)
+- White-label multi-tenant boards via `projects` + `?tenant=<slug>`
 
 ## Getting started
 
@@ -32,6 +33,27 @@ Open [http://localhost:3000](http://localhost:3000).
 | Member | member@feedback.local | password123 |
 
 Only admins can open `/admin` and change request status.
+
+## Multi-tenant / white-label (connect flow)
+
+This portal does **not** hand-create product tenants. Host apps connect; the portal reads their name/logo and opens a board.
+
+```text
+# Host product opens:
+http://localhost:3000/connect?url=https://your-product.example
+
+# After connect, users land on:
+http://localhost:3000/?tenant=<auto-slug>
+http://localhost:3000/admin?tenant=<auto-slug>
+```
+
+Flow:
+1. `/connect?url=...` fetches the site title / og metadata and upserts a `projects` row (`connect_project`).
+2. Board UI loads that project’s name, logo, theme, and feature flags.
+3. The **first user who signs up/in on that tenant board** becomes its admin (`claim_project_access`). Later users join as members.
+4. Platform-wide `profiles.is_admin` still governs the universal board (`project_id IS NULL`).
+
+API equivalent: `POST /api/projects/connect` with `{ "url": "https://..." }` (optional `name`, `logoUrl`, `themeConfig`).
 
 ## Duplicate detection
 

@@ -7,6 +7,43 @@ export type Profile = {
   created_at: string;
 };
 
+export type ProjectThemeConfig = {
+  primary?: string;
+  primaryForeground?: string;
+  accent?: string;
+  accentForeground?: string;
+  muted?: string;
+  ring?: string;
+};
+
+export type ProjectIntegration = {
+  enabled: boolean;
+  /** When true, no customer-facing UI — host apps may still read the flag. */
+  invisible?: boolean;
+  baseUrl?: string;
+};
+
+export type ProjectFeatures = {
+  comments: boolean;
+  duplicateDetection: boolean;
+  submitIdeas: boolean;
+  integrations: Record<string, ProjectIntegration>;
+};
+
+export type Project = {
+  id: string;
+  slug: string;
+  name: string;
+  logo_url: string | null;
+  theme_config: ProjectThemeConfig;
+  custom_features: ProjectFeatures;
+  origin_url?: string | null;
+  origin_host?: string | null;
+  created_at: string;
+};
+
+export type ProjectMemberRole = "admin" | "member";
+
 export type Post = {
   id: string;
   title: string;
@@ -18,6 +55,7 @@ export type Post = {
   comment_count: number;
   created_at: string;
   tags: string[];
+  project_id: string | null;
   has_voted?: boolean;
 };
 

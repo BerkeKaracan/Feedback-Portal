@@ -16,10 +16,29 @@ function cleanTags(tags: string[]) {
   ];
 }
 
+export type FetchPostsOptions = {
+  /** When set, only that project's posts. When null/omitted with `universalOnly`, default board. */
+  projectId?: string | null;
+  /** If true and projectId is null/undefined, return only posts with no project (universal board). */
+  universalOnly?: boolean;
+};
+
 export async function fetchPostsWithVotes(
   supabase: Client,
   userId?: string | null,
+  options?: FetchPostsOptions,
 ): Promise<Post[]> {
+  let postsQuery = supabase
+    .from("posts")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (options?.projectId) {
+    postsQuery = postsQuery.eq("project_id", options.projectId);
+  } else if (options?.universalOnly) {
+    postsQuery = postsQuery.is("project_id", null);
+  }
+
   const [
     { data: posts, error: postsError },
     { data: voteCounts, error: votesError },
@@ -27,10 +46,7 @@ export async function fetchPostsWithVotes(
     { data: profiles, error: profilesError },
     { data: comments, error: commentsError },
   ] = await Promise.all([
-    supabase
-      .from("posts")
-      .select("*")
-      .order("created_at", { ascending: false }),
+    postsQuery,
     supabase.rpc("post_vote_counts"),
     userId
       ? supabase.from("votes").select("post_id").eq("user_id", userId)
@@ -75,6 +91,7 @@ export async function fetchPostsWithVotes(
     comment_count: commentCountByPost.get(post.id) ?? 0,
     created_at: post.created_at,
     tags: post.tags ?? [],
+    project_id: post.project_id ?? null,
     has_voted: votedPostIds.has(post.id),
   }));
 }
@@ -86,6 +103,7 @@ export async function createPost(
     description: string;
     authorId: string;
     tags?: string[];
+    projectId?: string | null;
   },
 ) {
   const provided = cleanTags(input.tags ?? []);
@@ -98,6 +116,7 @@ export async function createPost(
     post_title: input.title,
     post_description: input.description,
     post_tags: tags,
+    post_project_id: input.projectId ?? null,
   });
 
   if (error) throw error;

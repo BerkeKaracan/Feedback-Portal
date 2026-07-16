@@ -19,6 +19,7 @@ import { DuplicateReview } from "@/components/admin/duplicate-review";
 import { KanbanCard } from "@/components/admin/kanban-card";
 import { KanbanColumn } from "@/components/admin/kanban-column";
 import { RequestDetailSheet } from "@/components/admin/request-detail-sheet";
+import { useTenant } from "@/components/tenant/tenant-provider";
 import { Button } from "@/components/ui/button";
 import {
   deletePost,
@@ -48,6 +49,8 @@ function resolveStatus(
 
 export function KanbanBoard() {
   const supabase = createClient();
+  const { project, loading: tenantLoading, features, isTenant } = useTenant();
+  const projectId = project?.id ?? null;
   const posts = useKanbanStore((state) => state.posts);
   const setPosts = useKanbanStore((state) => state.setPosts);
   const movePost = useKanbanStore((state) => state.movePost);
@@ -76,7 +79,10 @@ export function KanbanBoard() {
 
     try {
       const { data } = await supabase.auth.getUser();
-      const nextPosts = await fetchPostsWithVotes(supabase, data.user?.id);
+      const nextPosts = await fetchPostsWithVotes(supabase, data.user?.id, {
+        projectId,
+        universalOnly: !projectId,
+      });
       setPosts(nextPosts);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load board");
@@ -87,9 +93,10 @@ export function KanbanBoard() {
   }
 
   useEffect(() => {
+    if (tenantLoading) return;
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when tenant board changes
+  }, [projectId, tenantLoading]);
 
   const filteredPosts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -221,7 +228,17 @@ export function KanbanBoard() {
 
       <BoardMetrics posts={posts} />
 
-      <DuplicateReview onMerged={() => load({ soft: true })} />
+      {features.duplicateDetection ? (
+        <DuplicateReview
+          projectId={projectId}
+          onMerged={() => load({ soft: true })}
+        />
+      ) : null}
+      {isTenant ? (
+        <p className="text-xs text-slate-500">
+          Viewing board for <span className="font-medium text-slate-700">{project?.name}</span>
+        </p>
+      ) : null}
 
       <BoardToolbar
         query={query}

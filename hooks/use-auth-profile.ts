@@ -3,19 +3,28 @@
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 
+import { useOptionalTenant } from "@/components/tenant/tenant-provider";
+import { claimProjectAccess, isProjectAdmin } from "@/lib/projects";
 import { createClient } from "@/lib/supabase/client";
-import type { Profile } from "@/types/database";
+import type { Profile, ProjectMemberRole } from "@/types/database";
 
 export function useAuthProfile() {
   const supabase = createClient();
+  const tenant = useOptionalTenant();
+  const projectId = tenant?.project?.id ?? null;
+
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [projectRole, setProjectRole] = useState<ProjectMemberRole | null>(null);
+  const [projectAdmin, setProjectAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(
     async (nextUser: User | null) => {
       if (!nextUser) {
         setProfile(null);
+        setProjectRole(null);
+        setProjectAdmin(false);
         setLoading(false);
         return;
       }
@@ -27,9 +36,28 @@ export function useAuthProfile() {
         .maybeSingle();
 
       setProfile(data);
+
+      if (projectId) {
+        try {
+          const role = await claimProjectAccess(supabase, projectId);
+          setProjectRole(role);
+          const allowed =
+            Boolean(data?.is_admin) ||
+            role === "admin" ||
+            (await isProjectAdmin(supabase, projectId));
+          setProjectAdmin(allowed);
+        } catch {
+          setProjectRole(null);
+          setProjectAdmin(Boolean(data?.is_admin));
+        }
+      } else {
+        setProjectRole(null);
+        setProjectAdmin(false);
+      }
+
       setLoading(false);
     },
-    [supabase]
+    [projectId, supabase]
   );
 
   useEffect(() => {
@@ -60,11 +88,19 @@ export function useAuthProfile() {
     setProfile(next);
   }
 
+  const isPlatformAdmin = Boolean(profile?.is_admin);
+  // Tenant board: project admin (self-claimed) or platform admin.
+  // Universal board: platform admin only.
+  const isBoardAdmin = projectId ? projectAdmin || isPlatformAdmin : isPlatformAdmin;
+
   return {
     user,
     profile,
     loading,
-    isAdmin: Boolean(profile?.is_admin),
+    isAdmin: isBoardAdmin,
+    isPlatformAdmin,
+    isBoardAdmin,
+    projectRole,
     refreshProfile,
   };
 }

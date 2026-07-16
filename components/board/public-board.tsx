@@ -7,6 +7,7 @@ import { BoardToolbar } from "@/components/board/board-toolbar";
 import { FeatureCard } from "@/components/board/feature-card";
 import { PostDetailSheet } from "@/components/board/post-detail-sheet";
 import { SubmitIdeaDialog } from "@/components/board/submit-idea-dialog";
+import { useTenant } from "@/components/tenant/tenant-provider";
 import { Button } from "@/components/ui/button";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
 import {
@@ -24,6 +25,12 @@ export function PublicBoard() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, profile, loading: authLoading } = useAuthProfile();
+  const {
+    project,
+    isTenant,
+    loading: tenantLoading,
+    features,
+  } = useTenant();
   const [posts, setPosts] = useState<Post[]>([]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<BoardSort>("top");
@@ -34,12 +41,17 @@ export function PublicBoard() {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const projectId = project?.id ?? null;
+
   const loadPosts = useCallback(
     async (userId?: string | null) => {
       setError(null);
       setLoading(true);
       try {
-        const data = await fetchPostsWithVotes(supabase, userId);
+        const data = await fetchPostsWithVotes(supabase, userId, {
+          projectId,
+          universalOnly: !projectId,
+        });
         setPosts(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load posts");
@@ -47,13 +59,13 @@ export function PublicBoard() {
         setLoading(false);
       }
     },
-    [supabase]
+    [projectId, supabase]
   );
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || tenantLoading) return;
     void loadPosts(user?.id);
-  }, [authLoading, loadPosts, user?.id]);
+  }, [authLoading, loadPosts, tenantLoading, user?.id]);
 
   const sortedPosts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -155,6 +167,7 @@ export function PublicBoard() {
       description,
       authorId: user.id,
       tags,
+      projectId,
     });
 
     setPosts((prev) => [
@@ -169,6 +182,7 @@ export function PublicBoard() {
         comment_count: 0,
         created_at: created.created_at,
         tags: created.tags ?? tags,
+        project_id: created.project_id ?? projectId,
         has_voted: true,
       },
       ...prev,
@@ -202,7 +216,11 @@ export function PublicBoard() {
     setSelectedPost(post.id);
   }
 
-  const showLoading = authLoading || loading;
+  const showLoading = authLoading || tenantLoading || loading;
+  const boardLabel = isTenant ? `${project!.name} feedback` : "Public roadmap";
+  const boardTitle = isTenant
+    ? `What should we improve in ${project!.name}?`
+    : "What should we build?";
 
   return (
     <div className="public-canvas relative flex-1">
@@ -212,27 +230,31 @@ export function PublicBoard() {
         <section className="animate-board-in space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-2">
-              <p className="text-xs font-medium tracking-[0.14em] text-teal-700 uppercase">
-                Public roadmap
+              <p className="text-xs font-medium tracking-[0.14em] text-[var(--tenant-primary,#0f766e)] uppercase">
+                {boardLabel}
               </p>
               <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                What should we build?
+                {boardTitle}
               </h1>
               <p className="max-w-xl text-sm leading-relaxed text-slate-600">
                 Vote on the ideas that matter, discuss details, or pitch a new
                 one. The team triages everything on the admin roadmap.
               </p>
             </div>
-            <SubmitIdeaDialog
-              signedIn={Boolean(user)}
-              authLoading={authLoading}
-              onSubmit={handleSubmitIdea}
-              onUpvoteExisting={async (postId) => {
-                const current = posts.find((post) => post.id === postId);
-                if (current?.has_voted) return;
-                await handleToggleVote(postId);
-              }}
-            />
+            {features.submitIdeas ? (
+              <SubmitIdeaDialog
+                signedIn={Boolean(user)}
+                authLoading={authLoading}
+                projectId={projectId}
+                enableDuplicateDetection={features.duplicateDetection}
+                onSubmit={handleSubmitIdea}
+                onUpvoteExisting={async (postId) => {
+                  const current = posts.find((post) => post.id === postId);
+                  if (current?.has_voted) return;
+                  await handleToggleVote(postId);
+                }}
+              />
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-2 text-xs text-slate-500">
@@ -318,6 +340,7 @@ export function PublicBoard() {
           void handleToggleVote(postId).catch(() => undefined);
         }}
         onCommentCountChange={handleCommentCountChange}
+        allowComments={features.comments}
       />
     </div>
   );
