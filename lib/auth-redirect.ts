@@ -25,9 +25,20 @@ export function safeAuthNextPath(
   return decoded;
 }
 
+/**
+ * Prefer NEXT_PUBLIC_SITE_URL so production OAuth never falls back to a
+ * misconfigured Supabase Site URL (e.g. localhost) when the allow-list is wrong.
+ * Browser origin is used only when the env is unset (local dev).
+ */
+export function getAppOrigin() {
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (fromEnv) return fromEnv;
+  if (typeof window !== "undefined") return window.location.origin;
+  return "";
+}
+
 export function buildOAuthCallbackUrl(nextPath: string) {
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "";
+  const origin = getAppOrigin();
   const next = safeAuthNextPath(nextPath, "/");
   return `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
 }

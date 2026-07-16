@@ -56,12 +56,18 @@ These accounts exist only on local Supabase — not on production.
    `https://lttbqwzougpkorbhlnsm.supabase.co/auth/v1/callback`
 3. Supabase → Authentication → Providers → enable **Google** and **GitHub** (paste Client ID + Secret).
 4. Supabase → Authentication → URL Configuration:
-   - Site URL: `https://feedback-portal-lyart.vercel.app`
-   - Redirect URLs:
+   - **Site URL must be the live app** (not localhost), or Google/GitHub login
+     after OAuth dumps you on `localhost` even when you tested on Vercel:
+     `https://feedback-portal-lyart.vercel.app`
+   - Redirect URLs (allow-list):
      - `https://feedback-portal-lyart.vercel.app/auth/callback`
      - `https://feedback-portal-lyart.vercel.app/**`
-     - `http://localhost:3000/auth/callback`
+     - `http://localhost:3000/auth/callback` (only if you also develop locally)
      - `http://localhost:3000/**`
+
+5. Vercel → Environment Variables → set for Production:
+   `NEXT_PUBLIC_SITE_URL=https://feedback-portal-lyart.vercel.app`
+   then redeploy.
 
 App callback route: `/auth/callback` (exchanges `code` for a session, preserves `?next=` for tenant/boards).
 
