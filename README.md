@@ -35,18 +35,10 @@ Use the **JWT anon key** (`eyJ...`), not the `sb_publishable_...` key.
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Demo accounts (local only, after `db reset`)
+### Auth (Google + GitHub only)
 
-| Role   | Email                 | Password    |
-|--------|-----------------------|-------------|
-| Admin  | admin@feedback.local  | password123 |
-| Member | member@feedback.local | password123 |
-
-These accounts exist only on local Supabase — not on production.
-
-### Production Auth
-
-#### Google + GitHub (recommended)
+The app UI does **not** offer email/password sign-in. Disable the Email provider in
+Supabase → Authentication → Providers so password auth is off at the API layer too.
 
 1. **Google Cloud Console** → OAuth client (Web)  
    Authorized redirect URI:  
@@ -54,7 +46,7 @@ These accounts exist only on local Supabase — not on production.
 2. **GitHub** → Developer settings → OAuth App  
    Authorization callback URL:  
    `https://lttbqwzougpkorbhlnsm.supabase.co/auth/v1/callback`
-3. Supabase → Authentication → Providers → enable **Google** and **GitHub** (paste Client ID + Secret).
+3. Supabase → Authentication → Providers → enable **Google** and **GitHub** (paste Client ID + Secret). Disable **Email**.
 4. Supabase → Authentication → URL Configuration:
    - **Site URL must be the live app** (not localhost), or Google/GitHub login
      after OAuth dumps you on `localhost` even when you tested on Vercel:
@@ -71,17 +63,7 @@ These accounts exist only on local Supabase — not on production.
 
 App callback route: `/auth/callback` (exchanges `code` for a session, preserves `?next=` for tenant/boards).
 
-OAuth users arrive with a verified email from the provider — no confirm mail needed.
-
-#### Email / password confirmation (optional, free feature)
-
-Confirm email is free, but Supabase’s **built-in SMTP is ~2 emails/hour** — not enough for production.
-
-1. Add free custom SMTP (e.g. Resend) under Project Settings → Auth → SMTP.
-2. Then turn **Confirm email ON** under Providers → Email.
-3. Until SMTP is connected, keep Confirm email **OFF** so password signups can sign in immediately.
-
-Local `config.toml` has `enable_confirmations = false` for local demo.
+OAuth users arrive with a verified email from the provider — no SMTP or confirm mail needed.
 
 ## Multi-tenant / white-label (connect flow)
 

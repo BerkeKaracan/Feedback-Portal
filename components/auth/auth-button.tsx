@@ -65,16 +65,12 @@ export function AuthButton() {
   } = useAuthProfile();
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<"google" | "github" | null>(
     null
   );
+  const [profileSaving, setProfileSaving] = useState(false);
 
   function currentNextPath() {
     const query = searchParams.toString();
@@ -83,7 +79,6 @@ export function AuthButton() {
 
   async function handleOAuth(provider: "google" | "github") {
     setError(null);
-    setNotice(null);
     setOauthLoading(provider);
 
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -99,65 +94,11 @@ export function AuthButton() {
     }
   }
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-    setNotice(null);
-
-    if (mode === "signin") {
-      const result = await supabase.auth.signInWithPassword({ email, password });
-      setLoading(false);
-
-      if (result.error) {
-        setError(formatAuthError(result.error));
-        return;
-      }
-
-      setOpen(false);
-      setEmail("");
-      setPassword("");
-      return;
-    }
-
-    const result = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          display_name: email.split("@")[0] || "User",
-        },
-        emailRedirectTo: buildOAuthCallbackUrl(currentNextPath()),
-      },
-    });
-
-    setLoading(false);
-
-    if (result.error) {
-      setError(formatAuthError(result.error));
-      return;
-    }
-
-    // When email confirmation is on, Supabase returns a user but no session.
-    if (!result.data.session) {
-      setMode("signin");
-      setPassword("");
-      setNotice(
-        "Account created. Check your email to confirm, then sign in. Or use Google / GitHub."
-      );
-      return;
-    }
-
-    setOpen(false);
-    setEmail("");
-    setPassword("");
-  }
-
   async function handleProfileSave(event: React.FormEvent) {
     event.preventDefault();
     if (!user) return;
 
-    setLoading(true);
+    setProfileSaving(true);
     setError(null);
 
     try {
@@ -167,7 +108,7 @@ export function AuthButton() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update name");
     } finally {
-      setLoading(false);
+      setProfileSaving(false);
     }
   }
 
@@ -235,8 +176,8 @@ export function AuthButton() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? "Saving..." : "Save"}
+                <Button type="submit" disabled={profileSaving}>
+                  {profileSaving ? "Saving..." : "Save"}
                 </Button>
               </DialogFooter>
             </form>
@@ -258,7 +199,6 @@ export function AuthButton() {
         setOpen(next);
         if (!next) {
           setError(null);
-          setNotice(null);
           setOauthLoading(null);
         }
       }}
@@ -269,13 +209,10 @@ export function AuthButton() {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {mode === "signin" ? "Sign in" : "Create account"}
-          </DialogTitle>
+          <DialogTitle>Sign in</DialogTitle>
           <DialogDescription>
-            {mode === "signin"
-              ? "Use Google, GitHub, or email. Votes and comments stay on your profile."
-              : "Create an account to vote, comment, and connect a product board."}
+            Continue with Google or GitHub. Votes and comments stay on your
+            profile.
           </DialogDescription>
         </DialogHeader>
 
@@ -284,7 +221,7 @@ export function AuthButton() {
             type="button"
             variant="outline"
             className="h-10 justify-center"
-            disabled={Boolean(oauthLoading) || loading}
+            disabled={Boolean(oauthLoading)}
             onClick={() => void handleOAuth("google")}
           >
             <GoogleIcon className="size-4" />
@@ -294,81 +231,16 @@ export function AuthButton() {
             type="button"
             variant="outline"
             className="h-10 justify-center"
-            disabled={Boolean(oauthLoading) || loading}
+            disabled={Boolean(oauthLoading)}
             onClick={() => void handleOAuth("github")}
           >
             <GitHubIcon className="size-4" />
             {oauthLoading === "github" ? "Redirecting…" : "Continue with GitHub"}
           </Button>
+          {error ? (
+            <p className="text-sm text-destructive">{error}</p>
+          ) : null}
         </div>
-
-        <div className="relative py-1 text-center text-xs text-slate-400">
-          <span className="bg-background relative z-10 px-2">or email</span>
-          <div className="absolute inset-x-0 top-1/2 border-t border-slate-200" />
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-3 py-2">
-            <div className="grid gap-1.5">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete={
-                  mode === "signin" ? "current-password" : "new-password"
-                }
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                minLength={6}
-                required
-              />
-            </div>
-            {notice ? (
-              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                {notice}
-              </p>
-            ) : null}
-            {error ? (
-              <p className="text-sm text-destructive">{error}</p>
-            ) : null}
-          </div>
-
-          <DialogFooter showCloseButton={false}>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setMode(mode === "signin" ? "signup" : "signin");
-                setError(null);
-                setNotice(null);
-              }}
-            >
-              {mode === "signin" ? "Need an account?" : "Have an account?"}
-            </Button>
-            <Button type="submit" disabled={loading || Boolean(oauthLoading)}>
-              {loading
-                ? "Please wait..."
-                : mode === "signin"
-                  ? "Sign in"
-                  : "Sign up"}
-            </Button>
-          </DialogFooter>
-        </form>
       </DialogContent>
     </Dialog>
   );
