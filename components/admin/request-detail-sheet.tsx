@@ -5,6 +5,15 @@ import { ChevronUp, Trash2, X } from "lucide-react";
 
 import { StatusBadge } from "@/components/board/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -43,6 +52,7 @@ export function RequestDetailSheet({
   const [tags, setTags] = useState<string[]>([]);
   const [savingTags, setSavingTags] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -85,15 +95,12 @@ export function RequestDetailSheet({
 
   async function handleDelete() {
     if (!post) return;
-    const confirmed = window.confirm(
-      `Delete “${post.title}”? This also removes votes and comments.`
-    );
-    if (!confirmed) return;
 
     setDeleting(true);
     setError(null);
     try {
       await onDelete(post.id);
+      setDeleteConfirmationOpen(false);
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete post");
@@ -257,12 +264,45 @@ export function RequestDetailSheet({
                   variant="destructive"
                   className="w-full"
                   disabled={deleting}
-                  onClick={() => void handleDelete()}
+                  onClick={() => setDeleteConfirmationOpen(true)}
                 >
                   <Trash2 data-icon="inline-start" />
                   {deleting ? "Deleting..." : "Delete request"}
                 </Button>
               </section>
+
+              <Dialog
+                open={deleteConfirmationOpen}
+                onOpenChange={setDeleteConfirmationOpen}
+              >
+                <DialogContent showCloseButton={!deleting}>
+                  <DialogHeader>
+                    <DialogTitle>Delete this request?</DialogTitle>
+                    <DialogDescription>
+                      “{post.title}” and its votes and comments will be permanently
+                      deleted.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <DialogClose
+                      render={
+                        <Button variant="outline" disabled={deleting} />
+                      }
+                    >
+                      Cancel
+                    </DialogClose>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={deleting}
+                      onClick={() => void handleDelete()}
+                    >
+                      <Trash2 data-icon="inline-start" />
+                      {deleting ? "Deleting..." : "Delete request"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         ) : null}

@@ -15,6 +15,7 @@ import { RefreshCw } from "lucide-react";
 
 import { BoardMetrics } from "@/components/admin/board-metrics";
 import { BoardToolbar } from "@/components/admin/board-toolbar";
+import { DuplicateReview } from "@/components/admin/duplicate-review";
 import { KanbanCard } from "@/components/admin/kanban-card";
 import { KanbanColumn } from "@/components/admin/kanban-column";
 import { RequestDetailSheet } from "@/components/admin/request-detail-sheet";
@@ -203,7 +204,7 @@ export function KanbanBoard() {
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -219,6 +220,8 @@ export function KanbanBoard() {
       </div>
 
       <BoardMetrics posts={posts} />
+
+      <DuplicateReview onMerged={() => load({ soft: true })} />
 
       <BoardToolbar
         query={query}

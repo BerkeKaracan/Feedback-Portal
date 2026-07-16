@@ -1,6 +1,6 @@
 # Feedback Portal
 
-Micro-SaaS for feature requests, upvotes, and an admin Kanban roadmap — with a thin AI analysis stub for future Python dedup/auto-tag.
+Micro-SaaS for feature requests, upvotes, comments, and an admin Kanban roadmap — with a built-in local duplicate detection engine.
 
 ## Stack
 
@@ -33,12 +33,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Only admins can open `/admin` and change request status.
 
-## AI stub
+## Duplicate detection
 
-`POST /api/ai/analyze` returns similar requests + suggested tags.
+Search and duplicate detection run entirely locally (no external API, no quota):
 
-- Default: local heuristic against posts in Supabase
-- Optional: set `AI_SERVICE_URL` to proxy to an external Python service (`POST {AI_SERVICE_URL}/analyze`)
+1. Text is normalized for Turkish/English and reduced to tokens + character trigrams.
+2. Known concepts group cross-language equivalents, so “koyu mod”, “dark mode”, and “Dark Thema” all match.
+3. The idea form calls `POST /api/search/similar` to surface likely duplicates and suggest tags before submitting.
+4. Admins review clustered duplicates in `/admin` and merge them (`GET`/`POST /api/search/duplicates`); votes, comments, and tags move to the kept request.
+
+The engine lives in `lib/search/` and is fully independent, so submissions never block on an external service.
 
 ## Useful commands
 

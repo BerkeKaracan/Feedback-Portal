@@ -15,8 +15,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { AnalyzeIdeaResponse } from "@/lib/ai/types";
 import { cn } from "@/lib/utils";
+
+type SimilarResponse = {
+  duplicates: Array<{
+    postId: string;
+    title: string;
+    score: number;
+    reason?: string;
+  }>;
+  tags: string[];
+  strongDuplicate: boolean;
+  mode: "local";
+};
 
 type SubmitIdeaDialogProps = {
   onSubmit: (title: string, description: string, tags: string[]) => void;
@@ -30,7 +41,7 @@ export function SubmitIdeaDialog({
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [analysis, setAnalysis] = useState<AnalyzeIdeaResponse | null>(null);
+  const [analysis, setAnalysis] = useState<SimilarResponse | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
@@ -41,7 +52,7 @@ export function SubmitIdeaDialog({
     const trimmedTitle = title.trim();
     const trimmedDescription = description.trim();
 
-    if (trimmedTitle.length < 4 || trimmedDescription.length < 8) {
+    if (trimmedTitle.length < 4) {
       setAnalysis(null);
       setSelectedTags([]);
       setAnalyzeError(null);
@@ -54,7 +65,7 @@ export function SubmitIdeaDialog({
       setAnalyzeError(null);
 
       try {
-        const response = await fetch("/api/ai/analyze", {
+        const response = await fetch("/api/search/similar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -65,21 +76,21 @@ export function SubmitIdeaDialog({
         });
 
         if (!response.ok) {
-          throw new Error("Analysis failed");
+          throw new Error("Search failed");
         }
 
-        const data = (await response.json()) as AnalyzeIdeaResponse;
+        const data = (await response.json()) as SimilarResponse;
         setAnalysis(data);
         setSelectedTags(data.tags);
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
         setAnalysis(null);
         setSelectedTags([]);
-        setAnalyzeError("Could not analyze this idea right now.");
+        setAnalyzeError("Could not check for similar ideas right now.");
       } finally {
         setAnalyzing(false);
       }
-    }, 450);
+    }, 350);
 
     return () => {
       controller.abort();
@@ -124,8 +135,8 @@ export function SubmitIdeaDialog({
           <DialogHeader>
             <DialogTitle>Submit a feature request</DialogTitle>
             <DialogDescription>
-              AI suggests tags and similar requests as you type. Toggle tags
-              before submitting.
+              We instantly check for similar requests as you type, so votes stay
+              consolidated instead of scattered across duplicates.
             </DialogDescription>
           </DialogHeader>
 
@@ -159,7 +170,7 @@ export function SubmitIdeaDialog({
             <div className="rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-3">
               <div className="mb-2 flex items-center gap-2 text-xs font-medium text-teal-800">
                 <Sparkles className="size-3.5" />
-                AI assist
+                Smart matching
                 {analyzing ? (
                   <LoaderCircle className="size-3.5 animate-spin" />
                 ) : null}
@@ -171,6 +182,15 @@ export function SubmitIdeaDialog({
 
               {!analyzing && !analyzeError && analysis ? (
                 <div className="space-y-3 text-xs text-slate-600">
+                  {analysis.strongDuplicate ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-800">
+                      <p className="font-semibold">A very similar request already exists.</p>
+                      <p className="mt-0.5">
+                        Upvote it below to consolidate feedback, or submit anyway
+                        if your need is materially different.
+                      </p>
+                    </div>
+                  ) : null}
                   <div>
                     <p className="mb-1 font-medium text-slate-700">
                       Suggested tags
@@ -219,6 +239,11 @@ export function SubmitIdeaDialog({
                               <p className="tabular-nums text-slate-400">
                                 {Math.round(item.score * 100)}% match
                               </p>
+                              {item.reason ? (
+                                <p className="mt-0.5 line-clamp-2 text-slate-500">
+                                  {item.reason}
+                                </p>
+                              ) : null}
                             </div>
                             {onUpvoteExisting ? (
                               <Button

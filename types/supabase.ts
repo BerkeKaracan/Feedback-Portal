@@ -107,7 +107,15 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      merge_duplicate_posts: {
+        Args: {
+          canonical_post_id: string;
+          duplicate_post_ids: string[];
+        };
+        Returns: undefined;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

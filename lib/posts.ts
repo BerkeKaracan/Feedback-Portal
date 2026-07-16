@@ -7,7 +7,7 @@ type Client = SupabaseClient<Database>;
 
 export async function fetchPostsWithVotes(
   supabase: Client,
-  userId?: string | null
+  userId?: string | null,
 ): Promise<Post[]> {
   const [
     { data: posts, error: postsError },
@@ -15,7 +15,10 @@ export async function fetchPostsWithVotes(
     { data: profiles, error: profilesError },
     { data: comments, error: commentsError },
   ] = await Promise.all([
-    supabase.from("posts").select("*").order("created_at", { ascending: false }),
+    supabase
+      .from("posts")
+      .select("*")
+      .order("created_at", { ascending: false }),
     supabase.from("votes").select("post_id, user_id"),
     supabase.from("profiles").select("id, display_name"),
     supabase.from("comments").select("post_id"),
@@ -27,7 +30,7 @@ export async function fetchPostsWithVotes(
   if (commentsError) throw commentsError;
 
   const displayNameById = new Map(
-    (profiles ?? []).map((profile) => [profile.id, profile.display_name])
+    (profiles ?? []).map((profile) => [profile.id, profile.display_name]),
   );
 
   const voteCountByPost = new Map<string, number>();
@@ -37,7 +40,7 @@ export async function fetchPostsWithVotes(
   for (const vote of votes ?? []) {
     voteCountByPost.set(
       vote.post_id,
-      (voteCountByPost.get(vote.post_id) ?? 0) + 1
+      (voteCountByPost.get(vote.post_id) ?? 0) + 1,
     );
     if (userId && vote.user_id === userId) {
       votedPostIds.add(vote.post_id);
@@ -47,7 +50,7 @@ export async function fetchPostsWithVotes(
   for (const comment of comments ?? []) {
     commentCountByPost.set(
       comment.post_id,
-      (commentCountByPost.get(comment.post_id) ?? 0) + 1
+      (commentCountByPost.get(comment.post_id) ?? 0) + 1,
     );
   }
 
@@ -75,7 +78,7 @@ export async function createPost(
     description: string;
     authorId: string;
     tags?: string[];
-  }
+  },
 ) {
   const { data, error } = await supabase
     .from("posts")
@@ -103,7 +106,7 @@ export async function createPost(
 
 export async function toggleVote(
   supabase: Client,
-  input: { postId: string; userId: string; hasVoted: boolean }
+  input: { postId: string; userId: string; hasVoted: boolean },
 ) {
   if (input.hasVoted) {
     const { error } = await supabase
@@ -125,7 +128,7 @@ export async function toggleVote(
 export async function updatePostStatus(
   supabase: Client,
   postId: string,
-  status: PostStatus
+  status: PostStatus,
 ) {
   const { error } = await supabase
     .from("posts")
@@ -138,13 +141,13 @@ export async function updatePostStatus(
 export async function updatePostTags(
   supabase: Client,
   postId: string,
-  tags: string[]
+  tags: string[],
 ) {
   const cleaned = [
     ...new Set(
       tags
         .map((tag) => tag.trim().toLowerCase())
-        .filter((tag) => tag.length > 0)
+        .filter((tag) => tag.length > 0),
     ),
   ];
 
@@ -167,7 +170,7 @@ export async function deletePost(supabase: Client, postId: string) {
 export async function updateDisplayName(
   supabase: Client,
   userId: string,
-  displayName: string
+  displayName: string,
 ) {
   const trimmed = displayName.trim();
   if (!trimmed) throw new Error("Display name is required");
