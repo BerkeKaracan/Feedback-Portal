@@ -1,9 +1,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { suggestTags } from "@/lib/search/text-similarity";
 import type { Post, PostStatus } from "@/types/database";
 import type { Database } from "@/types/supabase";
 
 type Client = SupabaseClient<Database>;
+
+function cleanTags(tags: string[]) {
+  return [
+    ...new Set(
+      tags
+        .map((tag) => tag.trim().toLowerCase())
+        .filter((tag) => tag.length > 0),
+    ),
+  ];
+}
 
 export async function fetchPostsWithVotes(
   supabase: Client,
@@ -18,6 +29,7 @@ export async function fetchPostsWithVotes(
     supabase
       .from("posts")
       .select("*")
+      .limit(40)
       .order("created_at", { ascending: false }),
     supabase.from("votes").select("post_id, user_id"),
     supabase.from("profiles").select("id, display_name"),
@@ -80,6 +92,12 @@ export async function createPost(
     tags?: string[];
   },
 ) {
+  const provided = cleanTags(input.tags ?? []);
+  const tags =
+    provided.length > 0
+      ? provided
+      : suggestTags({ title: input.title, description: input.description });
+
   const { data, error } = await supabase
     .from("posts")
     .insert({
@@ -87,7 +105,7 @@ export async function createPost(
       description: input.description,
       author_id: input.authorId,
       status: "idea",
-      tags: input.tags ?? [],
+      tags,
     })
     .select("*")
     .single();

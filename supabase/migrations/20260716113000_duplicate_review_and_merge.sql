@@ -1,40 +1,4 @@
--- Admin duplicate review and a safe, transactional merge operation.
-
-CREATE OR REPLACE FUNCTION public.find_post_embedding_pairs(
-  match_threshold REAL DEFAULT 0.62,
-  match_count INTEGER DEFAULT 50
-)
-RETURNS TABLE (
-  canonical_id UUID,
-  canonical_title TEXT,
-  canonical_votes BIGINT,
-  duplicate_id UUID,
-  duplicate_title TEXT,
-  duplicate_votes BIGINT,
-  similarity REAL
-)
-LANGUAGE sql
-STABLE
-SECURITY INVOKER
-SET search_path = public, extensions
-AS $$
-  SELECT
-    left_post.id AS canonical_id,
-    left_post.title AS canonical_title,
-    (SELECT COUNT(*) FROM votes WHERE post_id = left_post.id) AS canonical_votes,
-    right_post.id AS duplicate_id,
-    right_post.title AS duplicate_title,
-    (SELECT COUNT(*) FROM votes WHERE post_id = right_post.id) AS duplicate_votes,
-    (1 - (left_post.ai_embedding <=> right_post.ai_embedding))::REAL AS similarity
-  FROM posts AS left_post
-  JOIN posts AS right_post
-    ON left_post.id < right_post.id
-  WHERE left_post.ai_embedding IS NOT NULL
-    AND right_post.ai_embedding IS NOT NULL
-    AND (1 - (left_post.ai_embedding <=> right_post.ai_embedding)) >= match_threshold
-  ORDER BY similarity DESC
-  LIMIT LEAST(match_count, 100);
-$$;
+-- Admin-only transactional merge for duplicate feature requests.
 
 CREATE OR REPLACE FUNCTION public.merge_duplicate_post(
   canonical_post_id UUID,
@@ -93,7 +57,5 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.find_post_embedding_pairs(REAL, INTEGER)
-  TO authenticated;
 GRANT EXECUTE ON FUNCTION public.merge_duplicate_post(UUID, UUID)
   TO authenticated;
