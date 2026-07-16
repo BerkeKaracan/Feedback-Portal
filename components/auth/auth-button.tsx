@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
+import { formatAuthError } from "@/lib/auth-errors";
 import { updateDisplayName } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/client";
 
@@ -34,30 +35,54 @@ export function AuthButton() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setNotice(null);
 
-    const result =
-      mode === "signin"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                display_name: email.split("@")[0] || "User",
-              },
-            },
-          });
+    if (mode === "signin") {
+      const result = await supabase.auth.signInWithPassword({ email, password });
+      setLoading(false);
+
+      if (result.error) {
+        setError(formatAuthError(result.error));
+        return;
+      }
+
+      setOpen(false);
+      setEmail("");
+      setPassword("");
+      return;
+    }
+
+    const result = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          display_name: email.split("@")[0] || "User",
+        },
+      },
+    });
 
     setLoading(false);
 
     if (result.error) {
-      setError(result.error.message);
+      setError(formatAuthError(result.error));
+      return;
+    }
+
+    // When email confirmation is on, Supabase returns a user but no session.
+    if (!result.data.session) {
+      setMode("signin");
+      setPassword("");
+      setNotice(
+        "Account created. If sign-in fails with “email not confirmed”, confirmation is still enabled on the Auth project — disable it for MVP, then sign in."
+      );
       return;
     }
 
@@ -165,7 +190,16 @@ export function AuthButton() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setError(null);
+          setNotice(null);
+        }
+      }}
+    >
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
         <LogIn data-icon="inline-start" />
         Sign in
@@ -177,7 +211,9 @@ export function AuthButton() {
               {mode === "signin" ? "Sign in" : "Create account"}
             </DialogTitle>
             <DialogDescription>
-              Local demo: admin@feedback.local / password123
+              {mode === "signin"
+                ? "Sign in with your account. Votes and comments are saved to your profile."
+                : "Create an account to vote, comment, and connect a product board."}
             </DialogDescription>
           </DialogHeader>
 
@@ -211,6 +247,11 @@ export function AuthButton() {
                 required
               />
             </div>
+            {notice ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {notice}
+              </p>
+            ) : null}
             {error ? (
               <p className="text-sm text-destructive">{error}</p>
             ) : null}
@@ -223,6 +264,7 @@ export function AuthButton() {
               onClick={() => {
                 setMode(mode === "signin" ? "signup" : "signin");
                 setError(null);
+                setNotice(null);
               }}
             >
               {mode === "signin" ? "Need an account?" : "Have an account?"}

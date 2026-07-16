@@ -93,6 +93,43 @@ export type SiteMetadata = {
   slug: string;
 };
 
+export async function fetchWellKnownVerifyToken(
+  originUrl: string
+): Promise<string> {
+  const url = assertSafeConnectUrl(originUrl);
+  const verifyUrl = `${url.protocol}//${url.host}/.well-known/feedback-portal-verify.txt`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+
+  try {
+    const response = await fetch(verifyUrl, {
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        Accept: "text/plain,*/*",
+        "User-Agent": "FeedbackPortalConnect/1.0",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Verification file not found (${response.status}). Publish ${verifyUrl}`
+      );
+    }
+
+    const text = (await response.text()).trim();
+    const token = text.split(/\s+/)[0] ?? "";
+    if (!token.startsWith("fp_verify_")) {
+      throw new Error("Verification file does not contain a valid token");
+    }
+    return token;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function fetchSiteMetadata(rawUrl: string): Promise<SiteMetadata> {
   const url = assertSafeConnectUrl(rawUrl);
   const originUrl = `${url.protocol}//${url.host}`;

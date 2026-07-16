@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   Project,
   ProjectFeatures,
+  ProjectMemberRole,
   ProjectThemeConfig,
 } from "@/types/database";
 import type { Database, Json } from "@/types/supabase";
@@ -134,6 +135,37 @@ export async function fetchProjectBySlug(
   if (error) throw error;
   if (!data) return null;
   return mapProjectRow(data);
+}
+
+export type MyProject = Project & {
+  role: ProjectMemberRole;
+};
+
+/** Boards attached to the signed-in account (survive closed tabs). */
+export async function fetchMyProjects(supabase: Client): Promise<MyProject[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("project_members")
+    .select("role, projects(*)")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? [])
+    .map((row) => {
+      const projectRow = row.projects;
+      if (!projectRow || Array.isArray(projectRow)) return null;
+      return {
+        ...mapProjectRow(projectRow),
+        role: row.role as ProjectMemberRole,
+      };
+    })
+    .filter((item): item is MyProject => item !== null);
 }
 
 /** CSS custom properties applied when a tenant is active. */

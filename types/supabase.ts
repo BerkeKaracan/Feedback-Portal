@@ -66,6 +66,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      project_verify_challenges: {
+        Row: {
+          id: string;
+          user_id: string;
+          origin_url: string;
+          origin_host: string;
+          token: string;
+          expires_at: string;
+          consumed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          origin_url: string;
+          origin_host: string;
+          token: string;
+          expires_at: string;
+          consumed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          origin_url?: string;
+          origin_host?: string;
+          token?: string;
+          expires_at?: string;
+          consumed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       project_members: {
         Row: {
           project_id: string;
@@ -85,7 +118,15 @@ export type Database = {
           role?: "admin" | "member";
           created_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       posts: {
         Row: {
@@ -211,6 +252,40 @@ export type Database = {
       connect_project: {
         Args: {
           p_origin_url: string;
+          p_name: string;
+          p_slug: string;
+          p_logo_url?: string | null;
+          p_theme_config?: Json;
+          p_custom_features?: Json | null;
+        };
+        Returns: {
+          id: string;
+          slug: string;
+          name: string;
+          logo_url: string | null;
+          theme_config: Json;
+          custom_features: Json;
+          origin_url: string | null;
+          origin_host: string | null;
+          created_at: string;
+        };
+      };
+      start_project_verify: {
+        Args: { p_origin_url: string };
+        Returns: {
+          id: string;
+          user_id: string;
+          origin_url: string;
+          origin_host: string;
+          token: string;
+          expires_at: string;
+          consumed_at: string | null;
+          created_at: string;
+        };
+      };
+      connect_project_verified: {
+        Args: {
+          p_challenge_id: string;
           p_name: string;
           p_slug: string;
           p_logo_url?: string | null;

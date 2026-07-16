@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Sparkles } from "lucide-react";
+import { LayoutDashboard, LayoutGrid, Link2, Sparkles } from "lucide-react";
 
 import { AuthButton } from "@/components/auth/auth-button";
 import { useTenant } from "@/components/tenant/tenant-provider";
@@ -13,7 +13,9 @@ import { cn } from "@/lib/utils";
 export function SiteHeader() {
   const pathname = usePathname();
   const onAdmin = pathname.startsWith("/admin");
-  const { isAdmin, loading: authLoading } = useAuthProfile();
+  const onConnect = pathname.startsWith("/connect");
+  const onBoards = pathname.startsWith("/boards");
+  const { user, isAdmin, loading: authLoading } = useAuthProfile();
   const { project, isTenant, hrefWithTenant, error: tenantError } = useTenant();
 
   const brandName = isTenant ? project!.name : "Feedback Portal";
@@ -55,6 +57,38 @@ export function SiteHeader() {
         </div>
 
         <nav className="flex items-center gap-1">
+          {!authLoading && user ? (
+            <Link
+              href="/boards"
+              className={cn(
+                buttonVariants({
+                  variant: onBoards ? "secondary" : "ghost",
+                  size: "sm",
+                }),
+                onBoards &&
+                  "bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
+              )}
+            >
+              <LayoutGrid data-icon="inline-start" />
+              <span className="hidden sm:inline">My boards</span>
+            </Link>
+          ) : null}
+          {!isTenant ? (
+            <Link
+              href="/connect"
+              className={cn(
+                buttonVariants({
+                  variant: onConnect ? "secondary" : "ghost",
+                  size: "sm",
+                }),
+                onConnect &&
+                  "bg-teal-700 text-white hover:bg-teal-800 hover:text-white"
+              )}
+            >
+              <Link2 data-icon="inline-start" />
+              <span className="hidden sm:inline">Connect</span>
+            </Link>
+          ) : null}
           {!authLoading && isAdmin ? (
             <Link
               href={adminHref}

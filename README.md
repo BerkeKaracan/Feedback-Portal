@@ -2,6 +2,16 @@
 
 Micro-SaaS for feature requests, upvotes, comments, and an admin Kanban roadmap — with a built-in local duplicate detection engine.
 
+## Live demo
+
+**Production:** [https://feedback-portal-lyart.vercel.app/](https://feedback-portal-lyart.vercel.app/)
+
+| Page | URL |
+|------|-----|
+| Home | https://feedback-portal-lyart.vercel.app/ |
+| Connect product | https://feedback-portal-lyart.vercel.app/connect |
+| My boards | https://feedback-portal-lyart.vercel.app/boards |
+
 ## Stack
 
 - Next.js (App Router) + TypeScript
@@ -25,35 +35,45 @@ Use the **JWT anon key** (`eyJ...`), not the `sb_publishable_...` key.
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Demo accounts (after `db reset`)
+### Demo accounts (local only, after `db reset`)
 
 | Role   | Email                 | Password    |
 |--------|-----------------------|-------------|
 | Admin  | admin@feedback.local  | password123 |
 | Member | member@feedback.local | password123 |
 
-Only admins can open `/admin` and change request status.
+These accounts exist only on local Supabase — not on production.
+
+### Production Auth (required)
+
+If users see **Email not confirmed**, open Supabase Dashboard → Authentication → Providers → Email and turn **Confirm email OFF** for MVP (real OAuth comes later). Local `config.toml` already has `enable_confirmations = false`.
 
 ## Multi-tenant / white-label (connect flow)
 
-This portal does **not** hand-create product tenants. Host apps connect; the portal reads their name/logo and opens a board.
+This portal does **not** hand-create product tenants. Customers **sign in**, **prove domain ownership**, connect a site, and the board is **saved on their account** (`project_members`) so closing the tab never loses it.
 
 ```text
-# Host product opens:
-http://localhost:3000/connect?url=https://your-product.example
+# Customer-facing connect UI:
+https://feedback-portal-lyart.vercel.app/connect
+# or local:
+http://localhost:3000/connect
 
-# After connect, users land on:
-http://localhost:3000/?tenant=<auto-slug>
-http://localhost:3000/admin?tenant=<auto-slug>
+# After connect (account-bound):
+.../?tenant=<auto-slug>
+.../admin?tenant=<auto-slug>
+.../boards   ← reopen any board you own/joined
 ```
 
 Flow:
-1. `/connect?url=...` fetches the site title / og metadata and upserts a `projects` row (`connect_project`).
-2. Board UI loads that project’s name, logo, theme, and feature flags.
-3. The **first user who signs up/in on that tenant board** becomes its admin (`claim_project_access`). Later users join as members.
-4. Platform-wide `profiles.is_admin` still governs the universal board (`project_id IS NULL`).
+1. Sign in (required — no anonymous connect).
+2. Start verification → publish token at `/.well-known/feedback-portal-verify.txt` on the product domain.
+3. Verify & connect → metadata upsert + `claim_project_access` (first verified connector = project admin).
+4. Reopen anytime from **My boards**.
+5. Platform-wide `profiles.is_admin` still governs the universal board (`project_id IS NULL`).
 
-API equivalent: `POST /api/projects/connect` with `{ "url": "https://..." }` (optional `name`, `logoUrl`, `themeConfig`).
+APIs (authenticated):
+- `POST /api/projects/verify/start` `{ "url": "https://..." }` → `{ challengeId, token, verifyUrl }`
+- `POST /api/projects/connect` `{ "url", "challengeId" }` → board + redirect (only after well-known token match)
 
 ## Duplicate detection
 

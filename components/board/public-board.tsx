@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import Link from "next/link";
+import { Link2 } from "lucide-react";
+
 import { BoardToolbar } from "@/components/board/board-toolbar";
 import { FeatureCard } from "@/components/board/feature-card";
 import { PostDetailSheet } from "@/components/board/post-detail-sheet";
 import { SubmitIdeaDialog } from "@/components/board/submit-idea-dialog";
 import { useTenant } from "@/components/tenant/tenant-provider";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
 import {
   createPost,
@@ -17,6 +20,7 @@ import {
 } from "@/lib/posts";
 import { formatActionError } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 import type { BoardSort, Post, PostStatus } from "@/types/database";
 
 export function PublicBoard() {
@@ -230,31 +234,43 @@ export function PublicBoard() {
         <section className="animate-board-in space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-2">
-              <p className="text-xs font-medium tracking-[0.14em] text-[var(--tenant-primary,#0f766e)] uppercase">
+              <p className="text-xs font-medium tracking-[0.14em] text-(--tenant-primary,#0f766e) uppercase">
                 {boardLabel}
               </p>
               <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
                 {boardTitle}
               </h1>
               <p className="max-w-xl text-sm leading-relaxed text-slate-600">
-                Vote on the ideas that matter, discuss details, or pitch a new
-                one. The team triages everything on the admin roadmap.
+                {isTenant
+                  ? "Vote on the ideas that matter, discuss details, or pitch a new one. Your product team triages everything on the admin roadmap."
+                  : "Universal feedback board. Product teams connect their site to get a branded board — name and logo are pulled automatically."}
               </p>
             </div>
-            {features.submitIdeas ? (
-              <SubmitIdeaDialog
-                signedIn={Boolean(user)}
-                authLoading={authLoading}
-                projectId={projectId}
-                enableDuplicateDetection={features.duplicateDetection}
-                onSubmit={handleSubmitIdea}
-                onUpvoteExisting={async (postId) => {
-                  const current = posts.find((post) => post.id === postId);
-                  if (current?.has_voted) return;
-                  await handleToggleVote(postId);
-                }}
-              />
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              {!isTenant ? (
+                <Link
+                  href="/connect"
+                  className={cn(buttonVariants({ size: "default" }), "h-10")}
+                >
+                  <Link2 data-icon="inline-start" />
+                  Connect your product
+                </Link>
+              ) : null}
+              {features.submitIdeas ? (
+                <SubmitIdeaDialog
+                  signedIn={Boolean(user)}
+                  authLoading={authLoading}
+                  projectId={projectId}
+                  enableDuplicateDetection={features.duplicateDetection}
+                  onSubmit={handleSubmitIdea}
+                  onUpvoteExisting={async (postId) => {
+                    const current = posts.find((post) => post.id === postId);
+                    if (current?.has_voted) return;
+                    await handleToggleVote(postId);
+                  }}
+                />
+              ) : null}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 text-xs text-slate-500">
