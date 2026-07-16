@@ -4,9 +4,12 @@ export function formatAuthError(error: { message?: string } | string | null) {
   const normalized = message.toLowerCase();
 
   if (normalized.includes("email not confirmed")) {
-    return "This email is not confirmed yet. If you just signed up, try signing in again — or ask the site owner to disable email confirmation for MVP signup.";
+    return "Check your email and confirm your account before signing in. If no email arrives, custom SMTP may not be configured yet.";
   }
-  if (normalized.includes("invalid login credentials")) {
+  if (
+    normalized.includes("invalid login credentials") ||
+    normalized.includes("invalid email or password")
+  ) {
     return "Wrong email or password.";
   }
   if (normalized.includes("user already registered")) {
@@ -14,6 +17,16 @@ export function formatAuthError(error: { message?: string } | string | null) {
   }
   if (normalized.includes("signup requires a valid password")) {
     return "Password must be at least 6 characters.";
+  }
+  if (
+    normalized.includes("oauth") ||
+    normalized.includes("provider") ||
+    normalized.includes("access_denied")
+  ) {
+    return "Social sign-in was cancelled or failed. Try again, or use email and password.";
+  }
+  if (normalized.includes("email rate limit") || normalized.includes("over_email_send_rate_limit")) {
+    return "Too many emails sent. Wait a bit, or use Google / GitHub sign-in.";
   }
 
   return message.trim() || "Authentication failed.";

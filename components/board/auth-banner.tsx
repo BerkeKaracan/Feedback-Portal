@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { formatAuthError } from "@/lib/auth-errors";
+
 const MESSAGES: Record<string, string> = {
   "signin-required": "Sign in to access the admin workspace.",
   "admin-required": "Admin access is required for that page.",
@@ -20,10 +22,16 @@ export function AuthBanner() {
       return;
     }
 
-    setMessage(MESSAGES[code] ?? "You do not have access to that page.");
+    const description = searchParams.get("error_description");
+    if (code === "oauth" && description) {
+      setMessage(formatAuthError(description));
+    } else {
+      setMessage(MESSAGES[code] ?? "You do not have access to that page.");
+    }
 
     const url = new URL(window.location.href);
     url.searchParams.delete("error");
+    url.searchParams.delete("error_description");
     router.replace(url.pathname + url.search);
   }, [router, searchParams]);
 

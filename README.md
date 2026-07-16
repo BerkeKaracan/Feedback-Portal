@@ -44,9 +44,38 @@ Open [http://localhost:3000](http://localhost:3000).
 
 These accounts exist only on local Supabase — not on production.
 
-### Production Auth (required)
+### Production Auth
 
-If users see **Email not confirmed**, open Supabase Dashboard → Authentication → Providers → Email and turn **Confirm email OFF** for MVP (real OAuth comes later). Local `config.toml` already has `enable_confirmations = false`.
+#### Google + GitHub (recommended)
+
+1. **Google Cloud Console** → OAuth client (Web)  
+   Authorized redirect URI:  
+   `https://lttbqwzougpkorbhlnsm.supabase.co/auth/v1/callback`
+2. **GitHub** → Developer settings → OAuth App  
+   Authorization callback URL:  
+   `https://lttbqwzougpkorbhlnsm.supabase.co/auth/v1/callback`
+3. Supabase → Authentication → Providers → enable **Google** and **GitHub** (paste Client ID + Secret).
+4. Supabase → Authentication → URL Configuration:
+   - Site URL: `https://feedback-portal-lyart.vercel.app`
+   - Redirect URLs:
+     - `https://feedback-portal-lyart.vercel.app/auth/callback`
+     - `https://feedback-portal-lyart.vercel.app/**`
+     - `http://localhost:3000/auth/callback`
+     - `http://localhost:3000/**`
+
+App callback route: `/auth/callback` (exchanges `code` for a session, preserves `?next=` for tenant/boards).
+
+OAuth users arrive with a verified email from the provider — no confirm mail needed.
+
+#### Email / password confirmation (optional, free feature)
+
+Confirm email is free, but Supabase’s **built-in SMTP is ~2 emails/hour** — not enough for production.
+
+1. Add free custom SMTP (e.g. Resend) under Project Settings → Auth → SMTP.
+2. Then turn **Confirm email ON** under Providers → Email.
+3. Until SMTP is connected, keep Confirm email **OFF** so password signups can sign in immediately.
+
+Local `config.toml` has `enable_confirmations = false` for local demo.
 
 ## Multi-tenant / white-label (connect flow)
 
