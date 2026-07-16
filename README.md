@@ -66,14 +66,30 @@ http://localhost:3000/connect
 
 Flow:
 1. Sign in (required — no anonymous connect).
-2. Start verification → publish token at `/.well-known/feedback-portal-verify.txt` on the product domain.
+2. Start verification → publish the token on the product domain (see Next.js note below).
 3. Verify & connect → metadata upsert + `claim_project_access` (first verified connector = project admin).
 4. Reopen anytime from **My boards**.
 5. Platform-wide `profiles.is_admin` still governs the universal board (`project_id IS NULL`).
 
+### Next.js / Vercel host apps (important)
+
+`/.well-known/...` 404s if the file is not in `public/`. Easiest:
+
+```bash
+# in the host product repo
+mkdir -p public
+echo 'fp_verify_YOUR_TOKEN_HERE' > public/feedback-portal-verify.txt
+# deploy, then open:
+# https://your-app.vercel.app/feedback-portal-verify.txt
+```
+
+We also accept:
+- `/api/feedback-portal-verify` (plain text or `{ "token": "fp_verify_..." }`)
+- `/.well-known/feedback-portal-verify.txt` (`public/.well-known/...`)
+
 APIs (authenticated):
-- `POST /api/projects/verify/start` `{ "url": "https://..." }` → `{ challengeId, token, verifyUrl }`
-- `POST /api/projects/connect` `{ "url", "challengeId" }` → board + redirect (only after well-known token match)
+- `POST /api/projects/verify/start` `{ "url": "https://..." }` → `{ challengeId, token, verifyUrl, verifyUrls }`
+- `POST /api/projects/connect` `{ "url", "challengeId" }` → board + redirect (only after token match)
 
 ## Duplicate detection
 

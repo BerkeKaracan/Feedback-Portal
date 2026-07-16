@@ -93,41 +93,83 @@ export type SiteMetadata = {
   slug: string;
 };
 
+/** Paths we accept for ownership proof (Next.js/Vercel-friendly first). */
+export function verifyCandidatePaths(originUrl: string) {
+  const url = assertSafeConnectUrl(originUrl);
+  const origin = `${url.protocol}//${url.host}`;
+  // Prefer public/ file (Next.js/Vercel), then API route, then well-known.
+  return [
+    `${origin}/feedback-portal-verify.txt`,
+    `${origin}/api/feedback-portal-verify`,
+    `${origin}/.well-known/feedback-portal-verify.txt`,
+  ];
+}
+
+function extractVerifyToken(body: string) {
+  const trimmed = body.trim();
+  if (!trimmed) return null;
+
+  // Plain text token
+  const firstLine = trimmed.split(/\r?\n/)[0]?.trim() ?? "";
+  if (firstLine.startsWith("fp_verify_")) return firstLine.split(/\s+/)[0] ?? null;
+
+  // JSON: { "token": "fp_verify_..." }
+  try {
+    const parsed = JSON.parse(trimmed) as { token?: unknown };
+    if (typeof parsed.token === "string" && parsed.token.startsWith("fp_verify_")) {
+      return parsed.token.trim();
+    }
+  } catch {
+    // not JSON
+  }
+
+  return null;
+}
+
 export async function fetchWellKnownVerifyToken(
   originUrl: string
 ): Promise<string> {
-  const url = assertSafeConnectUrl(originUrl);
-  const verifyUrl = `${url.protocol}//${url.host}/.well-known/feedback-portal-verify.txt`;
+  const candidates = verifyCandidatePaths(originUrl);
+  const errors: string[] = [];
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 6000);
+  for (const verifyUrl of candidates) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
 
-  try {
-    const response = await fetch(verifyUrl, {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: {
-        Accept: "text/plain,*/*",
-        "User-Agent": "FeedbackPortalConnect/1.0",
-      },
-      cache: "no-store",
-    });
+    try {
+      const response = await fetch(verifyUrl, {
+        redirect: "follow",
+        signal: controller.signal,
+        headers: {
+          Accept: "text/plain,application/json,*/*",
+          "User-Agent": "FeedbackPortalConnect/1.0",
+        },
+        cache: "no-store",
+      });
 
-    if (!response.ok) {
-      throw new Error(
-        `Verification file not found (${response.status}). Publish ${verifyUrl}`
-      );
+      if (!response.ok) {
+        errors.push(`${verifyUrl} → ${response.status}`);
+        continue;
+      }
+
+      const token = extractVerifyToken(await response.text());
+      if (!token) {
+        errors.push(`${verifyUrl} → invalid body`);
+        continue;
+      }
+
+      return token;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "fetch failed";
+      errors.push(`${verifyUrl} → ${message}`);
+    } finally {
+      clearTimeout(timer);
     }
-
-    const text = (await response.text()).trim();
-    const token = text.split(/\s+/)[0] ?? "";
-    if (!token.startsWith("fp_verify_")) {
-      throw new Error("Verification file does not contain a valid token");
-    }
-    return token;
-  } finally {
-    clearTimeout(timer);
   }
+
+  throw new Error(
+    `Verification endpoint not found. For Next.js put the token in public/feedback-portal-verify.txt or expose /api/feedback-portal-verify. Tried: ${errors.join("; ")}`
+  );
 }
 
 export async function fetchSiteMetadata(rawUrl: string): Promise<SiteMetadata> {

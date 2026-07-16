@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { assertSafeConnectUrl } from "@/lib/connect/site-metadata";
+import {
+  assertSafeConnectUrl,
+  verifyCandidatePaths,
+} from "@/lib/connect/site-metadata";
 import { checkRateLimit, clientIpFromRequest } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Could not start verification" }, { status: 500 });
     }
 
-    const verifyUrl = `${originUrl}/.well-known/feedback-portal-verify.txt`;
+    const verifyUrls = verifyCandidatePaths(originUrl);
 
     return NextResponse.json({
       challengeId: data.id,
@@ -65,9 +68,11 @@ export async function POST(request: Request) {
       originUrl: data.origin_url,
       originHost: data.origin_host,
       expiresAt: data.expires_at,
-      verifyUrl,
+      // Prefer public/feedback-portal-verify.txt (index 0).
+      verifyUrl: verifyUrls[0],
+      verifyUrls,
       instructions:
-        "Publish the token as the only contents of the verification file, then continue.",
+        "For Next.js/Vercel: create public/feedback-portal-verify.txt with only the token, deploy, then continue. API route /api/feedback-portal-verify also works.",
     });
   } catch (error) {
     const message =

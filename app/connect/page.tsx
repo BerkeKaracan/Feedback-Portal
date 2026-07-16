@@ -21,9 +21,11 @@ type Challenge = {
   challengeId: string;
   token: string;
   verifyUrl: string;
+  verifyUrls?: string[];
   originUrl: string;
   originHost: string;
   expiresAt: string;
+  instructions?: string;
 };
 
 type Step = "url" | "verify" | "done";
@@ -206,18 +208,40 @@ function ConnectInner() {
                 Prove ownership of {challenge.originHost}
               </p>
               <p className="text-xs leading-relaxed text-slate-500">
-                Create this file on your site (exact path), with only the token
-                below as contents. Expires in 30 minutes.
+                Next.js/Vercel is not a static HTML host by default — put the
+                token in <code className="rounded bg-slate-100 px-1">public/</code>{" "}
+                (or an API route), deploy, then verify. Expires in 30 minutes.
               </p>
+            </div>
+
+            <div className="rounded-xl border border-teal-200 bg-teal-50/80 px-3 py-2 text-xs text-teal-950">
+              <p className="font-medium">Next.js steps</p>
+              <ol className="mt-1 list-decimal space-y-1 pl-4 text-teal-900/90">
+                <li>
+                  Create{" "}
+                  <code className="rounded bg-white/80 px-1">
+                    public/feedback-portal-verify.txt
+                  </code>
+                </li>
+                <li>Paste only the token below (one line)</li>
+                <li>Deploy to Vercel, open the URL (must not 404)</li>
+                <li>Click Verify &amp; connect</li>
+              </ol>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
-                File URL
+                Accepted URLs (any one)
               </p>
-              <code className="mt-1 block break-all text-xs text-slate-800">
-                {challenge.verifyUrl}
-              </code>
+              <ul className="mt-1 space-y-1">
+                {(challenge.verifyUrls ?? [challenge.verifyUrl]).map((item) => (
+                  <li key={item}>
+                    <code className="block break-all text-xs text-slate-800">
+                      {item}
+                    </code>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">

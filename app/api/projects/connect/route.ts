@@ -94,7 +94,9 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Token mismatch. Publish the exact verification token to /.well-known/feedback-portal-verify.txt",
+            "Token mismatch. The file is reachable, but it has an old/different token. Paste the CURRENT token from this Connect step into public/feedback-portal-verify.txt, redeploy, then try again.",
+          publishedTokenPrefix: publishedToken.slice(0, 18),
+          expectedTokenPrefix: challenge.token.slice(0, 18),
         },
         { status: 400 }
       );
