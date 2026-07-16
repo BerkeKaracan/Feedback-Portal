@@ -1,9 +1,10 @@
 // Local, dependency-free text similarity engine.
 //
-// This is intentionally independent from any AI/LLM service so search and
-// duplicate detection keep working when Gemini is rate-limited, offline, or
-// not configured. It normalizes Turkish/English text, canonicalizes a few
-// common cross-language feature phrases, and blends token + trigram overlap.
+// Normalizes Turkish/English text, maps tokens and multi-word phrases onto a
+// shared concept/synonym space (see lexicon.ts), then blends token + trigram
+// overlap. No external API or quota.
+
+import { CONCEPTS, SYNONYMS } from "@/lib/search/lexicon";
 
 const STOP_WORDS = new Set([
   "and",
@@ -25,45 +26,10 @@ const STOP_WORDS = new Set([
   "istiyorum",
   "lazim",
   "olsun",
+  "add",
+  "please",
+  "lutfen",
 ]);
-
-// Concept phrases group equivalent feature requests across languages/wording.
-// If two texts both contain phrases from the same concept, they are treated as
-// the same underlying request even when they share no common characters
-// (e.g. Turkish "koyu mod" vs English "dark mode").
-const CONCEPTS: Array<{ concept: string; phrases: string[] }> = [
-  {
-    concept: "dark-mode",
-    phrases: [
-      "dark mode",
-      "dark theme",
-      "dark thema",
-      "night mode",
-      "night theme",
-      "koyu mod",
-      "koyu tema",
-      "karanlik mod",
-      "karanlik tema",
-      "gece modu",
-      "gece tema",
-    ],
-  },
-  {
-    concept: "notifications",
-    phrases: [
-      "notification",
-      "notify",
-      "email alert",
-      "bildirim",
-      "uyari",
-      "hatirlatma",
-    ],
-  },
-  {
-    concept: "export",
-    phrases: ["csv export", "export data", "da disari aktar", "disa aktar", "export"],
-  },
-];
 
 export function normalizeText(value: string) {
   return value
@@ -75,28 +41,55 @@ export function normalizeText(value: string) {
     .trim();
 }
 
-// Extracts the set of known concepts present anywhere in the given text.
+function canonicalizeToken(token: string) {
+  return SYNONYMS[token] ?? token;
+}
+
+/** Concepts present anywhere in the joined text (word-bounded phrase match). */
 export function extractConcepts(...values: string[]): Set<string> {
+  // Pad with spaces so short tokens like "oy" cannot match inside "koyu".
   const haystack = ` ${normalizeText(values.join(" "))} `;
   const concepts = new Set<string>();
+
   for (const { concept, phrases } of CONCEPTS) {
-    if (phrases.some((phrase) => haystack.includes(` ${normalizeText(phrase)} `) || haystack.includes(normalizeText(phrase)))) {
-      concepts.add(concept);
-    }
+    const hit = phrases.some((phrase) => {
+      const normalized = normalizeText(phrase);
+      if (normalized.length < 3) return false;
+      return haystack.includes(` ${normalized} `);
+    });
+    if (hit) concepts.add(concept);
   }
+
   return concepts;
 }
 
 function canonicalTitle(value: string) {
-  return normalizeText(value).replace(/\bthema\b/g, "theme").split(/\s+/).filter(Boolean).join("-");
+  return normalizeText(value)
+    .replace(/\bthema\b/g, "theme")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(canonicalizeToken)
+    .join("-");
 }
 
+/**
+ * Token set in the shared synonym/concept space: stop-words removed,
+ * synonyms remapped, and matched concept ids injected as tokens.
+ */
 export function tokenize(value: string) {
-  return new Set(
-    normalizeText(value)
+  const normalized = normalizeText(value);
+  const tokens = new Set(
+    normalized
       .split(/\s+/)
       .filter((token) => token.length > 2 && !STOP_WORDS.has(token))
+      .map(canonicalizeToken)
   );
+
+  for (const concept of extractConcepts(value)) {
+    tokens.add(concept);
+  }
+
+  return tokens;
 }
 
 function jaccard(a: Set<string>, b: Set<string>) {
@@ -109,8 +102,10 @@ function jaccard(a: Set<string>, b: Set<string>) {
   return union === 0 ? 0 : intersection / union;
 }
 
-function trigrams(value: string) {
-  const compact = ` ${normalizeText(value)} `;
+/** Trigrams over a space-joined canonical token stream (cross-language). */
+function canonicalTrigrams(value: string) {
+  const tokens = [...tokenize(value)];
+  const compact = ` ${tokens.join(" ")} `;
   const grams = new Set<string>();
   for (let index = 0; index < compact.length - 2; index += 1) {
     grams.add(compact.slice(index, index + 3));
@@ -125,13 +120,12 @@ export type SimilarityInput = {
 
 /**
  * Returns a 0–1 similarity score between two feature requests using a blend of
- * canonical-phrase equality, token overlap, and character trigram overlap.
+ * canonical-phrase equality, shared concepts, and token/trigram overlap in the
+ * synonym-normalized space.
  */
 export function textSimilarity(a: SimilarityInput, b: SimilarityInput): number {
-  // Exact canonical title match (e.g. "Dark Thema" vs "dark theme").
   if (canonicalTitle(a.title) === canonicalTitle(b.title)) return 1;
 
-  // Shared concept across languages/wording (e.g. "koyu mod" vs "dark mode").
   const conceptsA = extractConcepts(a.title, a.description ?? "");
   const conceptsB = extractConcepts(b.title, b.description ?? "");
   for (const concept of conceptsA) {
@@ -143,7 +137,10 @@ export function textSimilarity(a: SimilarityInput, b: SimilarityInput): number {
     tokenize(`${a.title} ${a.description ?? ""}`),
     tokenize(`${b.title} ${b.description ?? ""}`)
   );
-  const titleTrigramScore = jaccard(trigrams(a.title), trigrams(b.title));
+  const titleTrigramScore = jaccard(
+    canonicalTrigrams(a.title),
+    canonicalTrigrams(b.title)
+  );
 
   return Math.max(
     titleTokenScore * 0.8 + titleTrigramScore * 0.2,
@@ -152,18 +149,45 @@ export function textSimilarity(a: SimilarityInput, b: SimilarityInput): number {
 }
 
 const TAG_KEYWORDS: Array<{ tag: string; terms: string[] }> = [
-  { tag: "ui", terms: ["ui", "ux", "design", "theme", "dark", "mode", "dashboard"] },
-  { tag: "integrations", terms: ["slack", "embed", "webhook", "api", "export", "import"] },
-  { tag: "ai", terms: ["ai", "duplicate", "tag", "auto", "suggest", "semantic"] },
-  { tag: "notifications", terms: ["notify", "notification", "email", "alert", "reminder"] },
-  { tag: "admin", terms: ["admin", "export", "csv", "priority", "triage", "manage"] },
-  { tag: "performance", terms: ["fast", "performance", "slow", "latency", "speed"] },
+  {
+    tag: "ui",
+    terms: ["ui", "ux", "design", "theme", "dark", "mode", "dashboard", "dark-mode"],
+  },
+  {
+    tag: "integrations",
+    terms: ["slack", "embed", "webhook", "api", "export", "import", "integration"],
+  },
+  {
+    tag: "ai",
+    terms: ["ai", "duplicate", "tag", "auto", "suggest", "semantic", "duplicate-detection"],
+  },
+  {
+    tag: "notifications",
+    terms: ["notify", "notification", "email", "alert", "reminder", "notifications"],
+  },
+  {
+    tag: "admin",
+    terms: ["admin", "export", "csv", "priority", "triage", "manage", "moderation"],
+  },
+  {
+    tag: "performance",
+    terms: ["fast", "performance", "slow", "latency", "speed"],
+  },
 ];
 
+/**
+ * Suggest tags from the synonym/concept-normalized token stream so TR and EN
+ * wording map to the same tag keywords.
+ */
 export function suggestTags(input: SimilarityInput): string[] {
-  const haystack = ` ${normalizeText(`${input.title} ${input.description ?? ""}`)} `;
+  const tokens = tokenize(`${input.title} ${input.description ?? ""}`);
+  const haystack = ` ${[...tokens].join(" ")} `;
+
   const tags = TAG_KEYWORDS.filter((entry) =>
-    entry.terms.some((term) => haystack.includes(` ${term} `) || haystack.includes(term))
+    entry.terms.some((term) => {
+      const normalized = normalizeText(term);
+      return haystack.includes(` ${normalized} `) || tokens.has(normalized);
+    })
   )
     .map((entry) => entry.tag)
     .slice(0, 4);
