@@ -13,12 +13,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { STATUS_LABELS, type PostStatus } from "@/types/database";
 
-type ReviewPost = { id: string; title: string; votes: number };
+type ReviewPost = {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  votes: number;
+};
+
 type DuplicateGroup = {
   id: string;
   posts: ReviewPost[];
   score: number;
+  minPairScore: number;
   reason: string;
 };
 
@@ -121,7 +130,10 @@ export function DuplicateReview({ onMerged }: DuplicateReviewProps) {
       const response = await fetch("/api/search/duplicates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ canonicalPostId: canonicalId, duplicatePostIds: duplicateIds }),
+        body: JSON.stringify({
+          canonicalPostId: canonicalId,
+          duplicatePostIds: duplicateIds,
+        }),
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(data.error ?? "Merge failed");
@@ -135,11 +147,22 @@ export function DuplicateReview({ onMerged }: DuplicateReviewProps) {
     }
   }
 
-  const pendingCanonicalTitle = pendingMerge
-    ? groups
-        .find((group) => group.id === pendingMerge.group.id)
-        ?.posts.find((post) => post.id === canonicalIds[pendingMerge.group.id])?.title
-    : "";
+  const pendingGroup = pendingMerge
+    ? groups.find((group) => group.id === pendingMerge.group.id)
+    : null;
+  const pendingCanonical = pendingGroup?.posts.find(
+    (post) => post.id === canonicalIds[pendingMerge!.group.id]
+  );
+  const pendingDuplicates =
+    pendingMerge && pendingGroup
+      ? pendingGroup.posts.filter((post) => {
+          const canonicalId = canonicalIds[pendingMerge.group.id];
+          const sourceIds = pendingMerge.mergeAll
+            ? pendingGroup.posts.map((item) => item.id)
+            : (selectedIds[pendingMerge.group.id] ?? []);
+          return sourceIds.includes(post.id) && post.id !== canonicalId;
+        })
+      : [];
 
   return (
     <section className="rounded-3xl border border-violet-200/80 bg-violet-50/60 p-4 shadow-sm">
@@ -162,7 +185,10 @@ export function DuplicateReview({ onMerged }: DuplicateReviewProps) {
           disabled={loading}
           className="border-violet-200 bg-white/80"
         >
-          <RefreshCw data-icon="inline-start" className={loading ? "animate-spin" : undefined} />
+          <RefreshCw
+            data-icon="inline-start"
+            className={loading ? "animate-spin" : undefined}
+          />
           Scan
         </Button>
       </div>
@@ -178,40 +204,61 @@ export function DuplicateReview({ onMerged }: DuplicateReviewProps) {
       {groups.length ? (
         <ul className="mt-4 space-y-2">
           {groups.map((group) => (
-            <li key={group.id} className="rounded-2xl border border-violet-100 bg-white/80 p-3">
+            <li
+              key={group.id}
+              className="rounded-2xl border border-violet-100 bg-white/80 p-3"
+            >
               <p className="text-xs text-violet-700">
-                {Math.round(group.score * 100)}% similarity · {group.reason}
+                Best pair {Math.round(group.score * 100)}%
+                {group.minPairScore < group.score
+                  ? ` · weakest link ${Math.round(group.minPairScore * 100)}%`
+                  : ""}{" "}
+                · {group.reason}
               </p>
               <div className="mt-3 space-y-2">
                 {group.posts.map((post) => {
                   const isCanonical = canonicalIds[group.id] === post.id;
+                  const statusLabel =
+                    STATUS_LABELS[post.status as PostStatus] ?? post.status;
                   return (
                     <label
                       key={post.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-sm hover:bg-violet-50"
+                      className="flex cursor-pointer gap-2 rounded-xl px-2 py-2 text-sm hover:bg-violet-50"
                     >
                       <input
                         type="checkbox"
+                        className="mt-1"
                         checked={(selectedIds[group.id] ?? []).includes(post.id)}
                         disabled={isCanonical}
                         onChange={() => togglePost(group, post.id)}
                       />
                       <input
                         type="radio"
+                        className="mt-1"
                         name={`merge-target-${group.id}`}
                         checked={isCanonical}
                         onChange={() => chooseCanonical(group, post.id)}
                       />
-                      <span className="min-w-0 flex-1 truncate font-medium text-slate-900">
-                        {post.title}
-                      </span>
-                      {isCanonical ? (
-                        <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">
-                          keep
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-slate-900">
+                            {post.title}
+                          </span>
+                          {isCanonical ? (
+                            <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">
+                              keep
+                            </span>
+                          ) : null}
+                          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">
+                            {statusLabel}
+                          </span>
+                          <span className="text-xs tabular-nums text-slate-500">
+                            {post.votes} votes
+                          </span>
                         </span>
-                      ) : null}
-                      <span className="text-xs tabular-nums text-slate-500">
-                        {post.votes} votes
+                        <span className="mt-0.5 line-clamp-2 block text-xs text-slate-500">
+                          {post.description}
+                        </span>
                       </span>
                     </label>
                   );
@@ -251,13 +298,26 @@ export function DuplicateReview({ onMerged }: DuplicateReviewProps) {
           <DialogHeader>
             <DialogTitle>Merge duplicate requests?</DialogTitle>
             <DialogDescription>
-              {pendingMerge
-                ? `${pendingMerge.mergeAll ? "All" : "Selected"} duplicate requests will be merged into “${pendingCanonicalTitle}”. Unique votes, comments, and tags move to the kept request; the others are deleted.`
+              {pendingCanonical
+                ? `Keep “${pendingCanonical.title}” (${STATUS_LABELS[pendingCanonical.status as PostStatus] ?? pendingCanonical.status}). Merge ${pendingDuplicates.length} request${pendingDuplicates.length === 1 ? "" : "s"} into it — votes, comments, and tags move over; duplicates are deleted.`
                 : ""}
             </DialogDescription>
           </DialogHeader>
+          {pendingDuplicates.length ? (
+            <ul className="max-h-40 space-y-1 overflow-y-auto text-xs text-slate-600">
+              {pendingDuplicates.map((post) => (
+                <li key={post.id} className="truncate rounded-lg bg-slate-50 px-2 py-1">
+                  {post.title}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <DialogFooter>
-            <DialogClose render={<Button variant="outline" disabled={Boolean(mergingGroupId)} />}>
+            <DialogClose
+              render={
+                <Button variant="outline" disabled={Boolean(mergingGroupId)} />
+              }
+            >
               Cancel
             </DialogClose>
             <Button

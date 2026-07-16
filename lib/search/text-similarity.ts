@@ -4,7 +4,7 @@
 // shared concept/synonym space (see lexicon.ts), then blends token + trigram
 // overlap. No external API or quota.
 
-import { CONCEPTS, SYNONYMS } from "@/lib/search/lexicon";
+import { CONCEPTS, LEMMA_PREFIXES, SYNONYMS } from "@/lib/search/lexicon";
 
 const STOP_WORDS = new Set([
   "and",
@@ -42,7 +42,46 @@ export function normalizeText(value: string) {
 }
 
 function canonicalizeToken(token: string) {
-  return SYNONYMS[token] ?? token;
+  const direct = SYNONYMS[token];
+  if (direct) return direct;
+
+  for (const [prefix, lemma] of LEMMA_PREFIXES) {
+    if (token === prefix || token.startsWith(prefix)) return lemma;
+  }
+
+  // Strip common TR noun/verb endings, then re-check synonyms/prefixes.
+  const suffixes = [
+    "tirmesi",
+    "tirmeyi",
+    "tirmeye",
+    "tirmenin",
+    "tirmek",
+    "tirme",
+    "mesi",
+    "meyi",
+    "meye",
+    "menin",
+    "mek",
+    "me",
+    "lari",
+    "leri",
+    "lar",
+    "ler",
+    "ing",
+    "ment",
+    "ments",
+  ];
+  for (const suffix of suffixes) {
+    if (token.length > suffix.length + 3 && token.endsWith(suffix)) {
+      const stem = token.slice(0, -suffix.length);
+      if (SYNONYMS[stem]) return SYNONYMS[stem];
+      for (const [prefix, lemma] of LEMMA_PREFIXES) {
+        if (stem === prefix || stem.startsWith(prefix)) return lemma;
+      }
+    }
+  }
+
+  return token;
 }
 
 /** Concepts present anywhere in the joined text (word-bounded phrase match). */
@@ -63,13 +102,25 @@ export function extractConcepts(...values: string[]): Set<string> {
   return concepts;
 }
 
-function canonicalTitle(value: string) {
-  return normalizeText(value)
-    .replace(/\bthema\b/g, "theme")
-    .split(/\s+/)
-    .filter(Boolean)
-    .map(canonicalizeToken)
-    .join("-");
+/** Order-independent title signature in the synonym space. */
+function titleSignature(value: string) {
+  return [...tokenizeTitle(value)].sort().join("|");
+}
+
+function tokenizeTitle(value: string) {
+  const tokens = new Set(
+    normalizeText(value)
+      .replace(/\bthema\b/g, "theme")
+      .split(/\s+/)
+      .filter((token) => token.length > 2 && !STOP_WORDS.has(token))
+      .map(canonicalizeToken)
+  );
+
+  for (const concept of extractConcepts(value)) {
+    tokens.add(concept);
+  }
+
+  return tokens;
 }
 
 /**
@@ -124,15 +175,20 @@ export type SimilarityInput = {
  * synonym-normalized space.
  */
 export function textSimilarity(a: SimilarityInput, b: SimilarityInput): number {
-  if (canonicalTitle(a.title) === canonicalTitle(b.title)) return 1;
+  // Same content words in any order after TR/EN canonicalization
+  // ("improve canvas" ≡ "canvas iyilestirmesi").
+  if (titleSignature(a.title) && titleSignature(a.title) === titleSignature(b.title)) {
+    return 1;
+  }
 
   const conceptsA = extractConcepts(a.title, a.description ?? "");
   const conceptsB = extractConcepts(b.title, b.description ?? "");
+  let sharedConcepts = 0;
   for (const concept of conceptsA) {
-    if (conceptsB.has(concept)) return 0.95;
+    if (conceptsB.has(concept)) sharedConcepts += 1;
   }
 
-  const titleTokenScore = jaccard(tokenize(a.title), tokenize(b.title));
+  const titleTokenScore = jaccard(tokenizeTitle(a.title), tokenizeTitle(b.title));
   const documentTokenScore = jaccard(
     tokenize(`${a.title} ${a.description ?? ""}`),
     tokenize(`${b.title} ${b.description ?? ""}`)
@@ -142,10 +198,31 @@ export function textSimilarity(a: SimilarityInput, b: SimilarityInput): number {
     canonicalTrigrams(b.title)
   );
 
-  return Math.max(
+  const lexicalScore = Math.max(
     titleTokenScore * 0.8 + titleTrigramScore * 0.2,
     titleTrigramScore * 0.65 + documentTokenScore * 0.35
   );
+
+  // Near-identical titles after synonym mapping are strong duplicates.
+  if (titleTokenScore >= 0.75) {
+    return Math.max(lexicalScore, 0.9);
+  }
+
+  // Shared concepts boost similarity but alone are not enough for a
+  // strong-duplicate (0.78+) hit — avoids "both mention search" false positives.
+  if (sharedConcepts >= 2) {
+    return Math.max(lexicalScore, 0.92);
+  }
+  if (sharedConcepts === 1) {
+    // Same product concept + any shared title token (e.g. dark/theme/mode family)
+    // is a strong cross-language duplicate signal.
+    if (titleTokenScore >= 0.25) {
+      return Math.max(lexicalScore, 0.9);
+    }
+    return Math.min(0.85, Math.max(lexicalScore, 0.55 + lexicalScore * 0.35));
+  }
+
+  return lexicalScore;
 }
 
 const TAG_KEYWORDS: Array<{ tag: string; terms: string[] }> = [

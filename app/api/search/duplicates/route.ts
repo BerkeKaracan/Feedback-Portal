@@ -35,25 +35,24 @@ export async function GET() {
 
   const { data: posts, error } = await auth.supabase
     .from("posts")
-    .select("id, title, description");
+    .select("id, title, description, status");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   const postIds = (posts ?? []).map((post) => post.id);
-  const { data: votes, error: votesError } = await auth.supabase
-    .from("votes")
-    .select("post_id");
+  const { data: voteCounts, error: votesError } = await auth.supabase.rpc(
+    "post_vote_counts"
+  );
 
   if (votesError) {
     return NextResponse.json({ error: votesError.message }, { status: 500 });
   }
 
-  const voteCountByPost = new Map<string, number>();
-  for (const vote of votes ?? []) {
-    voteCountByPost.set(vote.post_id, (voteCountByPost.get(vote.post_id) ?? 0) + 1);
-  }
+  const voteCountByPost = new Map(
+    (voteCounts ?? []).map((row) => [row.post_id, Number(row.vote_count)])
+  );
 
   const enriched = (posts ?? []).map((post) => ({
     ...post,

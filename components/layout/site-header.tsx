@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 export function SiteHeader() {
   const pathname = usePathname();
   const onAdmin = pathname.startsWith("/admin");
-  const { isAdmin } = useAuthProfile();
+  const { isAdmin, loading: authLoading } = useAuthProfile();
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/75 backdrop-blur-md">
@@ -28,7 +28,7 @@ export function SiteHeader() {
         </Link>
 
         <nav className="flex items-center gap-1">
-          {isAdmin ? (
+          {!authLoading && isAdmin ? (
             <Link
               href="/admin"
               className={cn(

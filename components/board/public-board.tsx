@@ -1,29 +1,35 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { BoardToolbar } from "@/components/board/board-toolbar";
 import { FeatureCard } from "@/components/board/feature-card";
 import { PostDetailSheet } from "@/components/board/post-detail-sheet";
 import { SubmitIdeaDialog } from "@/components/board/submit-idea-dialog";
+import { Button } from "@/components/ui/button";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
 import {
   createPost,
   fetchPostsWithVotes,
   toggleVote,
 } from "@/lib/posts";
+import { formatActionError } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/client";
 import type { BoardSort, Post, PostStatus } from "@/types/database";
 
 export function PublicBoard() {
   const supabase = createClient();
-  const { user, profile } = useAuthProfile();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { user, profile, loading: authLoading } = useAuthProfile();
   const [posts, setPosts] = useState<Post[]>([]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<BoardSort>("top");
   const [statusFilter, setStatusFilter] = useState<PostStatus | "all">("all");
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
+  const selectedPostId = searchParams.get("post");
+  const detailOpen = Boolean(selectedPostId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -31,6 +37,7 @@ export function PublicBoard() {
   const loadPosts = useCallback(
     async (userId?: string | null) => {
       setError(null);
+      setLoading(true);
       try {
         const data = await fetchPostsWithVotes(supabase, userId);
         setPosts(data);
@@ -44,8 +51,9 @@ export function PublicBoard() {
   );
 
   useEffect(() => {
+    if (authLoading) return;
     void loadPosts(user?.id);
-  }, [loadPosts, user?.id]);
+  }, [authLoading, loadPosts, user?.id]);
 
   const sortedPosts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -85,8 +93,9 @@ export function PublicBoard() {
     setActionError(null);
 
     if (!user) {
-      setActionError("Sign in to upvote requests.");
-      return;
+      const message = "Sign in to upvote requests.";
+      setActionError(message);
+      throw new Error(message);
     }
 
     const current = posts.find((post) => post.id === postId);
@@ -124,7 +133,9 @@ export function PublicBoard() {
             : post
         )
       );
-      setActionError(err instanceof Error ? err.message : "Vote failed");
+      const message = formatActionError(err, "Vote failed");
+      setActionError(message);
+      throw new Error(message);
     }
   }
 
@@ -136,43 +147,62 @@ export function PublicBoard() {
     setActionError(null);
 
     if (!user) {
-      setActionError("Sign in to submit a feature request.");
-      return;
+      throw new Error("Sign in to submit a feature request.");
     }
 
-    try {
-      const created = await createPost(supabase, {
-        title,
-        description,
-        authorId: user.id,
-        tags,
-      });
+    const created = await createPost(supabase, {
+      title,
+      description,
+      authorId: user.id,
+      tags,
+    });
 
-      setPosts((prev) => [
-        {
-          id: created.id,
-          title: created.title,
-          description: created.description,
-          status: created.status,
-          author_id: created.author_id,
-          author_name: profile?.display_name ?? "You",
-          vote_count: 1,
-          comment_count: 0,
-          created_at: created.created_at,
-          tags: created.tags ?? tags,
-          has_voted: true,
-        },
-        ...prev,
-      ]);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Submit failed");
-    }
+    setPosts((prev) => [
+      {
+        id: created.id,
+        title: created.title,
+        description: created.description,
+        status: created.status,
+        author_id: created.author_id,
+        author_name: profile?.display_name ?? "You",
+        vote_count: 1,
+        comment_count: 0,
+        created_at: created.created_at,
+        tags: created.tags ?? tags,
+        has_voted: true,
+      },
+      ...prev,
+    ]);
+  }
+
+  function handleCommentCountChange(postId: string, delta: number) {
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              comment_count: Math.max(0, post.comment_count + delta),
+            }
+          : post
+      )
+    );
+  }
+
+  function setSelectedPost(postId: string | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (postId) params.set("post", postId);
+    else params.delete("post");
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
   }
 
   function handleOpenPost(post: Post) {
-    setSelectedPostId(post.id);
-    setDetailOpen(true);
+    setSelectedPost(post.id);
   }
+
+  const showLoading = authLoading || loading;
 
   return (
     <div className="public-canvas relative flex-1">
@@ -194,11 +224,13 @@ export function PublicBoard() {
               </p>
             </div>
             <SubmitIdeaDialog
+              signedIn={Boolean(user)}
+              authLoading={authLoading}
               onSubmit={handleSubmitIdea}
-              onUpvoteExisting={(postId) => {
+              onUpvoteExisting={async (postId) => {
                 const current = posts.find((post) => post.id === postId);
                 if (current?.has_voted) return;
-                void handleToggleVote(postId);
+                await handleToggleVote(postId);
               }}
             />
           </div>
@@ -229,7 +261,7 @@ export function PublicBoard() {
         </section>
 
         <section className="space-y-3" aria-live="polite">
-          {loading ? (
+          {showLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, index) => (
                 <div
@@ -239,8 +271,16 @@ export function PublicBoard() {
               ))}
             </div>
           ) : error ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-12 text-center text-sm text-red-700">
-              {error}
+            <div className="space-y-3 rounded-2xl border border-red-200 bg-red-50 px-6 py-12 text-center text-sm text-red-700">
+              <p>{error}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void loadPosts(user?.id)}
+              >
+                Retry
+              </Button>
             </div>
           ) : sortedPosts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white/50 px-6 py-14 text-center text-sm text-slate-500">
@@ -257,7 +297,9 @@ export function PublicBoard() {
               >
                 <FeatureCard
                   post={post}
-                  onToggleVote={handleToggleVote}
+                  onToggleVote={(postId) => {
+                    void handleToggleVote(postId).catch(() => undefined);
+                  }}
                   onOpen={handleOpenPost}
                 />
               </div>
@@ -269,8 +311,13 @@ export function PublicBoard() {
       <PostDetailSheet
         post={selectedPost}
         open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onToggleVote={handleToggleVote}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPost(null);
+        }}
+        onToggleVote={(postId) => {
+          void handleToggleVote(postId).catch(() => undefined);
+        }}
+        onCommentCountChange={handleCommentCountChange}
       />
     </div>
   );

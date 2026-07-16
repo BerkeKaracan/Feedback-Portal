@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronUp, Trash2, X } from "lucide-react";
 
+import { CommentThread } from "@/components/board/comment-thread";
 import { StatusBadge } from "@/components/board/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -113,7 +114,7 @@ export function RequestDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full gap-0 border-l border-slate-200 bg-white p-0 sm:max-w-md"
+        className="w-full gap-0 border-l border-slate-200 bg-white p-0 sm:max-w-lg"
       >
         {post ? (
           <div className="flex h-full flex-col">
@@ -254,6 +255,8 @@ export function RequestDetailSheet({
                   })}
                 </div>
               </section>
+
+              <CommentThread postId={post.id} open={open} />
 
               <section className="space-y-2 border-t border-slate-100 pt-4">
                 {error ? (

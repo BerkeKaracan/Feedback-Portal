@@ -299,6 +299,7 @@ export const SYNONYMS: Record<string, string> = {
   koyu: "dark",
   karanlik: "dark",
   gece: "night",
+  mod: "mode",
   arayuz: "ui",
   tasarim: "design",
 
@@ -390,5 +391,32 @@ export const SYNONYMS: Record<string, string> = {
   sorun: "issue",
   hata: "bug",
   iyilestir: "improve",
+  iyilestirme: "improve",
+  iyilestirmesi: "improve",
+  iyilestirmek: "improve",
+  iyilestirmeyi: "improve",
   gelistir: "improve",
+  gelistirme: "improve",
+  gelistirmesi: "improve",
+  gelistirmek: "improve",
+  improve: "improve",
+  improving: "improve",
+  improvement: "improve",
+  enhancements: "improve",
+  enhancement: "improve",
+  enhance: "improve",
 };
+
+/**
+ * Prefix lemmas catch inflected Turkish forms that are longer than the
+ * dictionary key (e.g. iyilestirmesi → improve via prefix iyilestir).
+ */
+export const LEMMA_PREFIXES: Array<[string, string]> = [
+  ["iyilestir", "improve"],
+  ["gelistir", "improve"],
+  ["performans", "performance"],
+  ["bildirim", "notification"],
+  ["hatirlat", "reminder"],
+  ["entegrasyon", "integration"],
+  ["iyilestirme", "improve"],
+];

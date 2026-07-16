@@ -47,6 +47,7 @@ The engine lives in `lib/search/` and is fully independent, so submissions never
 ## Useful commands
 
 ```bash
+npm test
 npx supabase status
 npx supabase db reset
 npx supabase stop

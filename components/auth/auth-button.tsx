@@ -20,7 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export function AuthButton() {
   const supabase = createClient();
-  const { user, profile, refreshProfile } = useAuthProfile();
+  const { user, profile, loading: authLoading, refreshProfile } = useAuthProfile();
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -80,6 +80,15 @@ export function AuthButton() {
 
   async function handleSignOut() {
     await supabase.auth.signOut();
+  }
+
+  if (authLoading) {
+    return (
+      <div
+        className="h-8 w-24 animate-pulse rounded-lg bg-slate-100"
+        aria-hidden
+      />
+    );
   }
 
   if (user) {

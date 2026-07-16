@@ -60,6 +60,8 @@ export function findSimilarPosts(
 export type DuplicatePairPost = {
   id: string;
   title: string;
+  description: string;
+  status: string;
   votes: number;
 };
 
@@ -67,6 +69,8 @@ export type DuplicateGroup = {
   id: string;
   posts: DuplicatePairPost[];
   score: number;
+  /** Weakest pairwise link inside the cluster (avoids overstating transitive groups). */
+  minPairScore: number;
   reason: string;
 };
 
@@ -79,8 +83,7 @@ export function scanDuplicateGroups(
   threshold = SIMILAR_THRESHOLD
 ): DuplicateGroup[] {
   const parent = new Map<string, string>();
-  const bestScore = new Map<string, number>();
-  const bestReason = new Map<string, string>();
+  const pairScores: Array<{ a: string; b: string; score: number }> = [];
 
   const root = (id: string): string => {
     const current = parent.get(id) ?? id;
@@ -104,29 +107,19 @@ export function scanDuplicateGroups(
     for (let j = i + 1; j < posts.length; j += 1) {
       const score = textSimilarity(posts[i], posts[j]);
       if (score < threshold) continue;
-
       union(posts[i].id, posts[j].id);
-      const groupKey = root(posts[i].id);
-      if (score > (bestScore.get(groupKey) ?? 0)) {
-        bestScore.set(groupKey, score);
-        bestReason.set(
-          groupKey,
-          score >= 0.99
-            ? "Near-identical wording."
-            : "High local text similarity."
-        );
-      }
+      pairScores.push({ a: posts[i].id, b: posts[j].id, score });
     }
   }
 
   const detailsById = new Map(posts.map((post) => [post.id, post]));
   const grouped = new Map<string, Set<string>>();
 
-  for (const post of posts) {
-    const key = root(post.id);
-    if (!bestScore.has(key)) continue;
+  for (const pair of pairScores) {
+    const key = root(pair.a);
     const set = grouped.get(key) ?? new Set<string>();
-    set.add(post.id);
+    set.add(pair.a);
+    set.add(pair.b);
     grouped.set(key, set);
   }
 
@@ -138,26 +131,30 @@ export function scanDuplicateGroups(
           return {
             id: post.id,
             title: post.title,
+            description: post.description,
+            status: post.status ?? "idea",
             votes: post.vote_count ?? 0,
           };
         })
         .sort((a, b) => b.votes - a.votes);
 
-      // Merge the per-group best score onto the canonical root key.
-      let score = bestScore.get(key) ?? 0;
-      let reason = bestReason.get(key) ?? "High local text similarity.";
-      for (const id of ids) {
-        const candidate = bestScore.get(id);
-        if (candidate && candidate > score) {
-          score = candidate;
-          reason = bestReason.get(id) ?? reason;
-        }
-      }
+      const inGroup = pairScores.filter(
+        (pair) => ids.has(pair.a) && ids.has(pair.b)
+      );
+      const score = Math.max(...inGroup.map((pair) => pair.score), 0);
+      const minPairScore = Math.min(...inGroup.map((pair) => pair.score), score);
+      const reason =
+        score >= 0.99
+          ? "Near-identical wording after language normalization."
+          : minPairScore < score - 0.15
+            ? "Clustered via shared neighbors (weakest link shown)."
+            : "High local text similarity.";
 
       return {
         id: key,
         posts: groupPosts,
         score: Number(score.toFixed(3)),
+        minPairScore: Number(minPairScore.toFixed(3)),
         reason,
       };
     })

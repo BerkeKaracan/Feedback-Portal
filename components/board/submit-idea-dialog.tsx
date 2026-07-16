@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronUp, LoaderCircle, Plus, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { formatActionError } from "@/lib/rate-limit";
 import { cn } from "@/lib/utils";
 
 type SimilarResponse = {
@@ -30,11 +31,19 @@ type SimilarResponse = {
 };
 
 type SubmitIdeaDialogProps = {
-  onSubmit: (title: string, description: string, tags: string[]) => void;
-  onUpvoteExisting?: (postId: string) => void;
+  signedIn: boolean;
+  authLoading?: boolean;
+  onSubmit: (
+    title: string,
+    description: string,
+    tags: string[]
+  ) => Promise<void>;
+  onUpvoteExisting?: (postId: string) => Promise<void> | void;
 };
 
 export function SubmitIdeaDialog({
+  signedIn,
+  authLoading = false,
   onSubmit,
   onUpvoteExisting,
 }: SubmitIdeaDialogProps) {
@@ -45,16 +54,23 @@ export function SubmitIdeaDialog({
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [upvotingId, setUpvotingId] = useState<string | null>(null);
+  const tagsTouchedRef = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      tagsTouchedRef.current = false;
+      return;
+    }
 
     const trimmedTitle = title.trim();
     const trimmedDescription = description.trim();
 
     if (trimmedTitle.length < 4) {
       setAnalysis(null);
-      setSelectedTags([]);
+      if (!tagsTouchedRef.current) setSelectedTags([]);
       setAnalyzeError(null);
       return;
     }
@@ -75,18 +91,25 @@ export function SubmitIdeaDialog({
           signal: controller.signal,
         });
 
+        const data = (await response.json()) as SimilarResponse & {
+          error?: string;
+        };
+
         if (!response.ok) {
-          throw new Error("Search failed");
+          throw new Error(data.error ?? "Search failed");
         }
 
-        const data = (await response.json()) as SimilarResponse;
         setAnalysis(data);
-        setSelectedTags(data.tags);
+        if (!tagsTouchedRef.current) {
+          setSelectedTags(data.tags);
+        }
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
         setAnalysis(null);
-        setSelectedTags([]);
-        setAnalyzeError("Could not check for similar ideas right now.");
+        if (!tagsTouchedRef.current) setSelectedTags([]);
+        setAnalyzeError(
+          formatActionError(error, "Could not check for similar ideas right now.")
+        );
       } finally {
         setAnalyzing(false);
       }
@@ -99,6 +122,7 @@ export function SubmitIdeaDialog({
   }, [description, open, title]);
 
   function toggleTag(tag: string) {
+    tagsTouchedRef.current = true;
     setSelectedTags((current) =>
       current.includes(tag)
         ? current.filter((item) => item !== tag)
@@ -106,37 +130,93 @@ export function SubmitIdeaDialog({
     );
   }
 
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    const trimmedTitle = title.trim();
-    const trimmedDescription = description.trim();
-    if (!trimmedTitle || !trimmedDescription) return;
-
-    onSubmit(trimmedTitle, trimmedDescription, selectedTags);
+  function resetForm() {
     setTitle("");
     setDescription("");
     setAnalysis(null);
     setSelectedTags([]);
-    setOpen(false);
+    setAnalyzeError(null);
+    setSubmitError(null);
+    tagsTouchedRef.current = false;
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    const trimmedTitle = title.trim();
+    const trimmedDescription = description.trim();
+    if (!trimmedTitle || !trimmedDescription || submitting) return;
+
+    if (!signedIn) {
+      setSubmitError("Sign in to submit a feature request.");
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await onSubmit(trimmedTitle, trimmedDescription, selectedTags);
+      resetForm();
+      setOpen(false);
+    } catch (error) {
+      setSubmitError(
+        formatActionError(error, "Submit failed")
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleUpvote(postId: string) {
+    if (!onUpvoteExisting || upvotingId) return;
+
+    if (!signedIn) {
+      setSubmitError("Sign in to upvote requests.");
+      return;
+    }
+
+    setUpvotingId(postId);
+    setSubmitError(null);
+
+    try {
+      await onUpvoteExisting(postId);
+      setOpen(false);
+    } catch (error) {
+      setSubmitError(
+        formatActionError(error, "Vote failed")
+      );
+    } finally {
+      setUpvotingId(null);
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (submitting) return;
+        setOpen(next);
+        if (!next) {
+          setSubmitError(null);
+        }
+      }}
+    >
       <DialogTrigger
         render={
-          <Button>
+          <Button disabled={authLoading}>
             <Plus data-icon="inline-start" />
             New idea
           </Button>
         }
       />
-      <DialogContent className="sm:max-w-lg">
-        <form onSubmit={handleSubmit}>
+      <DialogContent className="sm:max-w-lg" showCloseButton={!submitting}>
+        <form onSubmit={(event) => void handleSubmit(event)}>
           <DialogHeader>
             <DialogTitle>Submit a feature request</DialogTitle>
             <DialogDescription>
-              We instantly check for similar requests as you type, so votes stay
-              consolidated instead of scattered across duplicates.
+              {signedIn
+                ? "We instantly check for similar requests as you type, so votes stay consolidated instead of scattered across duplicates."
+                : "Sign in to submit a request. You can still preview similar ideas below."}
             </DialogDescription>
           </DialogHeader>
 
@@ -151,6 +231,9 @@ export function SubmitIdeaDialog({
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Short summary of your idea"
                 required
+                minLength={3}
+                maxLength={120}
+                disabled={submitting}
               />
             </div>
             <div className="grid gap-1.5">
@@ -164,6 +247,9 @@ export function SubmitIdeaDialog({
                 placeholder="What problem does this solve?"
                 rows={4}
                 required
+                minLength={8}
+                maxLength={4000}
+                disabled={submitting}
               />
             </div>
 
@@ -184,10 +270,12 @@ export function SubmitIdeaDialog({
                 <div className="space-y-3 text-xs text-slate-600">
                   {analysis.strongDuplicate ? (
                     <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-800">
-                      <p className="font-semibold">A very similar request already exists.</p>
+                      <p className="font-semibold">
+                        A very similar request already exists.
+                      </p>
                       <p className="mt-0.5">
-                        Upvote it below to consolidate feedback, or submit anyway
-                        if your need is materially different.
+                        Upvote it below to consolidate feedback, or submit
+                        anyway if your need is materially different.
                       </p>
                     </div>
                   ) : null}
@@ -203,6 +291,7 @@ export function SubmitIdeaDialog({
                             key={tag}
                             type="button"
                             onClick={() => toggleTag(tag)}
+                            disabled={submitting}
                             className={cn(
                               "rounded-full px-2 py-0.5 text-[11px] ring-1 transition-colors",
                               active
@@ -250,13 +339,13 @@ export function SubmitIdeaDialog({
                                 type="button"
                                 size="xs"
                                 variant="outline"
-                                onClick={() => {
-                                  onUpvoteExisting(item.postId);
-                                  setOpen(false);
-                                }}
+                                disabled={Boolean(upvotingId) || submitting}
+                                onClick={() => void handleUpvote(item.postId)}
                               >
                                 <ChevronUp data-icon="inline-start" />
-                                Upvote
+                                {upvotingId === item.postId
+                                  ? "..."
+                                  : "Upvote"}
                               </Button>
                             ) : null}
                           </li>
@@ -273,17 +362,28 @@ export function SubmitIdeaDialog({
                 )
               )}
             </div>
+
+            {submitError ? (
+              <p className="text-sm text-destructive">{submitError}</p>
+            ) : null}
           </div>
 
           <DialogFooter showCloseButton={false}>
             <Button
               type="button"
               variant="outline"
+              disabled={submitting}
               onClick={() => setOpen(false)}
             >
               Cancel
             </Button>
-            <Button type="submit">Submit idea</Button>
+            <Button type="submit" disabled={submitting || authLoading}>
+              {submitting
+                ? "Submitting..."
+                : signedIn
+                  ? "Submit idea"
+                  : "Sign in to submit"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

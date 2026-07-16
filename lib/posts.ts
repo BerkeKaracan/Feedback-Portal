@@ -22,22 +22,26 @@ export async function fetchPostsWithVotes(
 ): Promise<Post[]> {
   const [
     { data: posts, error: postsError },
-    { data: votes, error: votesError },
+    { data: voteCounts, error: votesError },
+    { data: myVotes, error: myVotesError },
     { data: profiles, error: profilesError },
     { data: comments, error: commentsError },
   ] = await Promise.all([
     supabase
       .from("posts")
       .select("*")
-      .limit(40)
       .order("created_at", { ascending: false }),
-    supabase.from("votes").select("post_id, user_id"),
+    supabase.rpc("post_vote_counts"),
+    userId
+      ? supabase.from("votes").select("post_id").eq("user_id", userId)
+      : Promise.resolve({ data: [] as Array<{ post_id: string }>, error: null }),
     supabase.from("profiles").select("id, display_name"),
     supabase.from("comments").select("post_id"),
   ]);
 
   if (postsError) throw postsError;
   if (votesError) throw votesError;
+  if (myVotesError) throw myVotesError;
   if (profilesError) throw profilesError;
   if (commentsError) throw commentsError;
 
@@ -45,19 +49,11 @@ export async function fetchPostsWithVotes(
     (profiles ?? []).map((profile) => [profile.id, profile.display_name]),
   );
 
-  const voteCountByPost = new Map<string, number>();
-  const votedPostIds = new Set<string>();
+  const voteCountByPost = new Map(
+    (voteCounts ?? []).map((row) => [row.post_id, Number(row.vote_count)]),
+  );
+  const votedPostIds = new Set((myVotes ?? []).map((vote) => vote.post_id));
   const commentCountByPost = new Map<string, number>();
-
-  for (const vote of votes ?? []) {
-    voteCountByPost.set(
-      vote.post_id,
-      (voteCountByPost.get(vote.post_id) ?? 0) + 1,
-    );
-    if (userId && vote.user_id === userId) {
-      votedPostIds.add(vote.post_id);
-    }
-  }
 
   for (const comment of comments ?? []) {
     commentCountByPost.set(
@@ -98,26 +94,14 @@ export async function createPost(
       ? provided
       : suggestTags({ title: input.title, description: input.description });
 
-  const { data, error } = await supabase
-    .from("posts")
-    .insert({
-      title: input.title,
-      description: input.description,
-      author_id: input.authorId,
-      status: "idea",
-      tags,
-    })
-    .select("*")
-    .single();
+  const { data, error } = await supabase.rpc("create_post_with_vote", {
+    post_title: input.title,
+    post_description: input.description,
+    post_tags: tags,
+  });
 
   if (error) throw error;
-
-  // Author auto-upvotes their own request
-  const { error: voteError } = await supabase.from("votes").insert({
-    post_id: data.id,
-    user_id: input.authorId,
-  });
-  if (voteError) throw voteError;
+  if (!data) throw new Error("Failed to create post");
 
   return data;
 }
