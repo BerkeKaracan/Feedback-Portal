@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import { MessageSquare, Shield, Trash2 } from "lucide-react";
 
+import { AttachmentGallery } from "@/components/board/attachment-gallery";
+import { ImageFilePicker } from "@/components/board/image-file-picker";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
+import { uploadPostAttachment } from "@/lib/attachments";
 import {
   createComment,
   deleteComment,
@@ -15,7 +18,7 @@ import { formatRelativeDate } from "@/lib/format";
 import { formatActionError } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import type { Comment } from "@/types/database";
+import type { Comment, PostAttachment } from "@/types/database";
 
 type CommentThreadProps = {
   postId: string;
@@ -34,6 +37,7 @@ export function CommentThread({
   const { user, profile, isAdmin } = useAuthProfile();
   const [comments, setComments] = useState<Comment[]>([]);
   const [content, setContent] = useState("");
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +46,7 @@ export function CommentThread({
     if (!open) {
       setComments([]);
       setContent("");
+      setImageFiles([]);
       setError(null);
       return;
     }
@@ -89,6 +94,19 @@ export function CommentThread({
         content: trimmed,
       });
 
+      const attachments: PostAttachment[] = [];
+      for (const file of imageFiles) {
+        attachments.push(
+          await uploadPostAttachment(supabase, {
+            postId,
+            userId: user.id,
+            file,
+            visibility: "public",
+            commentId: created.id,
+          })
+        );
+      }
+
       setComments((prev) => [
         ...prev,
         {
@@ -99,10 +117,12 @@ export function CommentThread({
           created_at: created.created_at,
           author_name: profile?.display_name ?? "You",
           is_admin: Boolean(profile?.is_admin),
+          attachments,
         },
       ]);
       onCountChange?.(1);
       setContent("");
+      setImageFiles([]);
     } catch (err) {
       setError(formatActionError(err, "Failed to post comment"));
     } finally {
@@ -189,6 +209,13 @@ export function CommentThread({
                 <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
                   {comment.content}
                 </p>
+                {comment.attachments && comment.attachments.length > 0 ? (
+                  <AttachmentGallery
+                    attachments={comment.attachments}
+                    size="sm"
+                    className="mt-2"
+                  />
+                ) : null}
               </li>
             );
           })}
@@ -206,6 +233,16 @@ export function CommentThread({
             rows={3}
             disabled={!user || submitting}
           />
+          {user ? (
+            <ImageFilePicker
+              files={imageFiles}
+              onChange={setImageFiles}
+              maxFiles={1}
+              label="Image"
+              hint="Optional — one image per comment."
+              disabled={submitting}
+            />
+          ) : null}
           <div className="flex items-center justify-between gap-2">
             {error ? (
               <p className="text-xs text-destructive">{error}</p>

@@ -65,6 +65,13 @@ App callback route: `/auth/callback` (exchanges `code` for a session, preserves 
 
 OAuth users arrive with a verified email from the provider — no SMTP or confirm mail needed.
 
+### Attachments & private notes
+
+- Public screenshots on ideas/comments (JPEG/PNG/WebP, ≤2 MB).
+- Optional **message for admins only** on submit (plus private images) — never shown on the public board.
+- Admin sheet: **Private from user** + **Internal notes** (team-only).
+- Requires Supabase Storage bucket `feedback-attachments` (created by migration `20260719120000_attachments_and_private_notes.sql`). Apply with `npx supabase db push` on the linked project.
+
 ## Multi-tenant / white-label (connect flow)
 
 This portal does **not** hand-create product tenants. Customers **sign in**, **prove domain ownership**, connect a site, and the board is **saved on their account** (`project_members`) so closing the tab never loses it.

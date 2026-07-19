@@ -2,6 +2,7 @@
 
 import { MessageSquare } from "lucide-react";
 
+import { AttachmentGallery } from "@/components/board/attachment-gallery";
 import { StatusBadge } from "@/components/board/status-badge";
 import { TagChips } from "@/components/board/tag-chips";
 import { UpvoteButton } from "@/components/board/upvote-button";
@@ -37,6 +38,13 @@ export function FeatureCard({ post, onToggleVote, onOpen }: FeatureCardProps) {
         <p className="line-clamp-2 text-sm leading-relaxed text-slate-500">
           {post.description}
         </p>
+        {post.attachments && post.attachments.length > 0 ? (
+          <AttachmentGallery
+            attachments={post.attachments}
+            size="sm"
+            className="pointer-events-none"
+          />
+        ) : null}
         <TagChips tags={post.tags} />
         <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
           <span>

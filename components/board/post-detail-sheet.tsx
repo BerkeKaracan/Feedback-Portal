@@ -2,6 +2,7 @@
 
 import { ChevronUp } from "lucide-react";
 
+import { AttachmentGallery } from "@/components/board/attachment-gallery";
 import { CommentThread } from "@/components/board/comment-thread";
 import { StatusBadge } from "@/components/board/status-badge";
 import { TagChips } from "@/components/board/tag-chips";
@@ -53,6 +54,12 @@ export function PostDetailSheet({
                 <SheetDescription className="text-sm leading-relaxed text-slate-500">
                   {post.description}
                 </SheetDescription>
+                {post.attachments && post.attachments.length > 0 ? (
+                  <AttachmentGallery
+                    attachments={post.attachments}
+                    className="pt-1"
+                  />
+                ) : null}
               </div>
             </SheetHeader>
 

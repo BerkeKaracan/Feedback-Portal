@@ -13,15 +13,18 @@ import { SubmitIdeaDialog } from "@/components/board/submit-idea-dialog";
 import { useTenant } from "@/components/tenant/tenant-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
+import { uploadPostAttachment } from "@/lib/attachments";
 import {
   createPost,
   fetchPostsWithVotes,
   toggleVote,
 } from "@/lib/posts";
+import { createPrivateMessage } from "@/lib/private-messages";
 import { formatActionError } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import type { BoardSort, Post, PostStatus } from "@/types/database";
+import type { BoardSort, Post, PostAttachment, PostStatus } from "@/types/database";
+import type { SubmitIdeaPayload } from "@/components/board/submit-idea-dialog";
 
 export function PublicBoard() {
   const supabase = createClient();
@@ -155,11 +158,7 @@ export function PublicBoard() {
     }
   }
 
-  async function handleSubmitIdea(
-    title: string,
-    description: string,
-    tags: string[]
-  ) {
+  async function handleSubmitIdea(payload: SubmitIdeaPayload) {
     setActionError(null);
 
     if (!user) {
@@ -167,12 +166,41 @@ export function PublicBoard() {
     }
 
     const created = await createPost(supabase, {
-      title,
-      description,
+      title: payload.title,
+      description: payload.description,
       authorId: user.id,
-      tags,
+      tags: payload.tags,
       projectId,
     });
+
+    const publicAttachments: PostAttachment[] = [];
+    for (const file of payload.publicImages) {
+      publicAttachments.push(
+        await uploadPostAttachment(supabase, {
+          postId: created.id,
+          userId: user.id,
+          file,
+          visibility: "public",
+        })
+      );
+    }
+
+    if (payload.privateMessage.trim()) {
+      const message = await createPrivateMessage(supabase, {
+        postId: created.id,
+        userId: user.id,
+        content: payload.privateMessage,
+      });
+      for (const file of payload.privateImages) {
+        await uploadPostAttachment(supabase, {
+          postId: created.id,
+          userId: user.id,
+          file,
+          visibility: "admin_only",
+          privateMessageId: message.id,
+        });
+      }
+    }
 
     setPosts((prev) => [
       {
@@ -185,9 +213,10 @@ export function PublicBoard() {
         vote_count: 1,
         comment_count: 0,
         created_at: created.created_at,
-        tags: created.tags ?? tags,
+        tags: created.tags ?? payload.tags,
         project_id: created.project_id ?? projectId,
         has_voted: true,
+        attachments: publicAttachments,
       },
       ...prev,
     ]);

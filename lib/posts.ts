@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { fetchPublicAttachmentsForPosts } from "@/lib/attachments";
 import { suggestTags } from "@/lib/search/text-similarity";
 import type { Post, PostStatus } from "@/types/database";
 import type { Database } from "@/types/supabase";
@@ -78,6 +79,12 @@ export async function fetchPostsWithVotes(
     );
   }
 
+  const postIds = (posts ?? []).map((post) => post.id);
+  const attachmentsByPost = await fetchPublicAttachmentsForPosts(
+    supabase,
+    postIds,
+  );
+
   return (posts ?? []).map((post) => ({
     id: post.id,
     title: post.title,
@@ -93,6 +100,7 @@ export async function fetchPostsWithVotes(
     tags: post.tags ?? [],
     project_id: post.project_id ?? null,
     has_voted: votedPostIds.has(post.id),
+    attachments: attachmentsByPost.get(post.id) ?? [],
   }));
 }
 

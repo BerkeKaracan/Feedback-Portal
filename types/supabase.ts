@@ -206,6 +206,90 @@ export type Database = {
         };
         Relationships: [];
       };
+      post_admin_notes: {
+        Row: {
+          id: string;
+          post_id: string;
+          author_id: string;
+          content: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          author_id: string;
+          content: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          author_id?: string;
+          content?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      post_private_messages: {
+        Row: {
+          id: string;
+          post_id: string;
+          author_id: string;
+          content: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          author_id: string;
+          content: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          author_id?: string;
+          content?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      post_attachments: {
+        Row: {
+          id: string;
+          post_id: string;
+          comment_id: string | null;
+          private_message_id: string | null;
+          storage_path: string;
+          mime_type: string;
+          visibility: "public" | "admin_only";
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          comment_id?: string | null;
+          private_message_id?: string | null;
+          storage_path: string;
+          mime_type: string;
+          visibility: "public" | "admin_only";
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          comment_id?: string | null;
+          private_message_id?: string | null;
+          storage_path?: string;
+          mime_type?: string;
+          visibility?: "public" | "admin_only";
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

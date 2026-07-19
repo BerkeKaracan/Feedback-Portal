@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ImageFilePicker } from "@/components/board/image-file-picker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatActionError } from "@/lib/rate-limit";
@@ -30,17 +31,22 @@ type SimilarResponse = {
   mode: "local";
 };
 
+export type SubmitIdeaPayload = {
+  title: string;
+  description: string;
+  tags: string[];
+  publicImages: File[];
+  privateMessage: string;
+  privateImages: File[];
+};
+
 type SubmitIdeaDialogProps = {
   signedIn: boolean;
   authLoading?: boolean;
   /** Scope duplicate checks / tags to a tenant board when set. */
   projectId?: string | null;
   enableDuplicateDetection?: boolean;
-  onSubmit: (
-    title: string,
-    description: string,
-    tags: string[]
-  ) => Promise<void>;
+  onSubmit: (payload: SubmitIdeaPayload) => Promise<void>;
   onUpvoteExisting?: (postId: string) => Promise<void> | void;
 };
 
@@ -62,6 +68,10 @@ export function SubmitIdeaDialog({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [upvotingId, setUpvotingId] = useState<string | null>(null);
+  const [publicImages, setPublicImages] = useState<File[]>([]);
+  const [privateMessage, setPrivateMessage] = useState("");
+  const [privateImages, setPrivateImages] = useState<File[]>([]);
+  const [privateOpen, setPrivateOpen] = useState(false);
   const tagsTouchedRef = useRef(false);
 
   useEffect(() => {
@@ -150,6 +160,10 @@ export function SubmitIdeaDialog({
     setSelectedTags([]);
     setAnalyzeError(null);
     setSubmitError(null);
+    setPublicImages([]);
+    setPrivateMessage("");
+    setPrivateImages([]);
+    setPrivateOpen(false);
     tagsTouchedRef.current = false;
   }
 
@@ -164,11 +178,24 @@ export function SubmitIdeaDialog({
       return;
     }
 
+    const trimmedPrivate = privateMessage.trim();
+    if (privateImages.length > 0 && !trimmedPrivate) {
+      setSubmitError("Add a private message when attaching private images.");
+      return;
+    }
+
     setSubmitting(true);
     setSubmitError(null);
 
     try {
-      await onSubmit(trimmedTitle, trimmedDescription, selectedTags);
+      await onSubmit({
+        title: trimmedTitle,
+        description: trimmedDescription,
+        tags: selectedTags,
+        publicImages,
+        privateMessage: trimmedPrivate,
+        privateImages,
+      });
       resetForm();
       setOpen(false);
     } catch (error) {
@@ -264,6 +291,52 @@ export function SubmitIdeaDialog({
                 maxLength={4000}
                 disabled={submitting}
               />
+            </div>
+
+            <ImageFilePicker
+              files={publicImages}
+              onChange={setPublicImages}
+              maxFiles={3}
+              label="Screenshots"
+              hint="Optional public images (JPEG/PNG/WebP, max 2 MB each)."
+              disabled={submitting}
+            />
+
+            <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 px-3 py-3">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between text-left text-sm font-medium text-amber-950"
+                onClick={() => setPrivateOpen((value) => !value)}
+              >
+                Message for admins only
+                <span className="text-xs font-normal text-amber-800/80">
+                  {privateOpen ? "Hide" : "Show"}
+                </span>
+              </button>
+              <p className="mt-1 text-xs text-amber-900/70">
+                Not shown on the public board — only product admins can read
+                this (order IDs, payment details, etc.).
+              </p>
+              {privateOpen ? (
+                <div className="mt-3 grid gap-3">
+                  <Textarea
+                    value={privateMessage}
+                    onChange={(event) => setPrivateMessage(event.target.value)}
+                    placeholder="Private note for admins…"
+                    rows={3}
+                    maxLength={2000}
+                    disabled={submitting}
+                  />
+                  <ImageFilePicker
+                    files={privateImages}
+                    onChange={setPrivateImages}
+                    maxFiles={2}
+                    label="Private images"
+                    hint="Only admins can see these."
+                    disabled={submitting}
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-3">

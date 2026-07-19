@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { ChevronUp, Trash2, X } from "lucide-react";
 
+import { AdminPrivatePanels } from "@/components/admin/admin-private-panels";
+import { AttachmentGallery } from "@/components/board/attachment-gallery";
 import { CommentThread } from "@/components/board/comment-thread";
 import { StatusBadge } from "@/components/board/status-badge";
 import { Button } from "@/components/ui/button";
@@ -170,7 +172,12 @@ export function RequestDetailSheet({
                 <p className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-relaxed text-slate-700">
                   {post.description}
                 </p>
+                {post.attachments && post.attachments.length > 0 ? (
+                  <AttachmentGallery attachments={post.attachments} />
+                ) : null}
               </section>
+
+              <AdminPrivatePanels postId={post.id} open={open} />
 
               <section className="space-y-2">
                 <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">

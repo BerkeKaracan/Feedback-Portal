@@ -4,7 +4,7 @@
  */
 export function safeAuthNextPath(
   raw: string | null | undefined,
-  fallback = "/"
+  fallback = "/",
 ) {
   if (!raw) return fallback;
 

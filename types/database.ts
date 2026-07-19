@@ -44,6 +44,22 @@ export type Project = {
 
 export type ProjectMemberRole = "admin" | "member";
 
+export type AttachmentVisibility = "public" | "admin_only";
+
+export type PostAttachment = {
+  id: string;
+  post_id: string;
+  comment_id: string | null;
+  private_message_id: string | null;
+  storage_path: string;
+  mime_type: string;
+  visibility: AttachmentVisibility;
+  created_by: string;
+  created_at: string;
+  /** Signed URL for display; may be null if signing failed. */
+  url?: string | null;
+};
+
 export type Post = {
   id: string;
   title: string;
@@ -57,6 +73,8 @@ export type Post = {
   tags: string[];
   project_id: string | null;
   has_voted?: boolean;
+  /** Public post-level images only (never private). */
+  attachments?: PostAttachment[];
 };
 
 export type Vote = {
@@ -73,6 +91,26 @@ export type Comment = {
   created_at: string;
   author_name: string;
   is_admin: boolean;
+  attachments?: PostAttachment[];
+};
+
+export type AdminNote = {
+  id: string;
+  post_id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+  author_name: string;
+};
+
+export type PrivateMessage = {
+  id: string;
+  post_id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+  author_name: string;
+  attachments: PostAttachment[];
 };
 
 export type BoardSort = "top" | "newest";
