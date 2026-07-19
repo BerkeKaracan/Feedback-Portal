@@ -120,14 +120,21 @@ export async function createPost(
       ? provided
       : suggestTags({ title: input.title, description: input.description });
 
+  const projectId =
+    typeof input.projectId === "string" && input.projectId.trim().length > 0
+      ? input.projectId.trim()
+      : null;
+
   const { data, error } = await supabase.rpc("create_post_with_vote", {
-    post_title: input.title,
-    post_description: input.description,
+    post_title: input.title.trim(),
+    post_description: input.description.trim(),
     post_tags: tags,
-    post_project_id: input.projectId ?? null,
+    post_project_id: projectId,
   });
 
-  if (error) throw error;
+  if (error) {
+    throw new Error(error.message || "Failed to create post");
+  }
   if (!data) throw new Error("Failed to create post");
 
   return data;

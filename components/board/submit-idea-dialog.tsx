@@ -249,18 +249,24 @@ export function SubmitIdeaDialog({
           </Button>
         }
       />
-      <DialogContent className="sm:max-w-lg" showCloseButton={!submitting}>
-        <form onSubmit={(event) => void handleSubmit(event)}>
-          <DialogHeader>
+      <DialogContent
+        className="flex max-h-[min(90vh,720px)] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+        showCloseButton={!submitting}
+      >
+        <form
+          onSubmit={(event) => void handleSubmit(event)}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <DialogHeader className="shrink-0 space-y-1.5 px-4 pt-4 pr-12">
             <DialogTitle>Submit a feature request</DialogTitle>
             <DialogDescription>
               {signedIn
-                ? "We instantly check for similar requests as you type, so votes stay consolidated instead of scattered across duplicates."
+                ? "Check for similar requests, add screenshots, then submit."
                 : "Sign in to submit a request. You can still preview similar ideas below."}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-3 py-4">
+          <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto px-4 py-3">
             <div className="grid gap-1.5">
               <label htmlFor="title" className="text-sm font-medium">
                 Title
@@ -285,7 +291,7 @@ export function SubmitIdeaDialog({
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="What problem does this solve?"
-                rows={4}
+                rows={3}
                 required
                 minLength={8}
                 maxLength={4000}
@@ -298,7 +304,7 @@ export function SubmitIdeaDialog({
               onChange={setPublicImages}
               maxFiles={3}
               label="Screenshots"
-              hint="Optional public images (JPEG/PNG/WebP, max 2 MB each)."
+              hint="Optional · JPEG/PNG/WebP · max 2 MB each."
               disabled={submitting}
             />
 
@@ -450,11 +456,16 @@ export function SubmitIdeaDialog({
             </div>
 
             {submitError ? (
-              <p className="text-sm text-destructive">{submitError}</p>
+              <p className="sticky bottom-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-destructive">
+                {submitError}
+              </p>
             ) : null}
           </div>
 
-          <DialogFooter showCloseButton={false}>
+          <DialogFooter
+            showCloseButton={false}
+            className="mx-0 mb-0 shrink-0 rounded-none border-t bg-muted/50 p-4"
+          >
             <Button
               type="button"
               variant="outline"

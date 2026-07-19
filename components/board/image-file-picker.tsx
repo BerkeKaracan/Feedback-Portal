@@ -63,7 +63,7 @@ export function ImageFilePicker({
             return (
               <li
                 key={`${file.name}-${file.size}-${index}`}
-                className="relative size-16 overflow-hidden rounded-lg border border-slate-200"
+                className="relative size-12 overflow-hidden rounded-md border border-slate-200"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={preview} alt="" className="size-full object-cover" />

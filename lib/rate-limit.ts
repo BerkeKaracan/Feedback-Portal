@@ -64,15 +64,17 @@ export function isRateLimitError(message: string) {
 }
 
 export function formatActionError(error: unknown, fallback: string) {
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : "";
+  let message = "";
+  if (error instanceof Error) {
+    message = error.message;
+  } else if (typeof error === "string") {
+    message = error;
+  } else if (error && typeof error === "object" && "message" in error) {
+    message = String((error as { message?: unknown }).message ?? "");
+  }
 
   if (isRateLimitError(message)) {
-    return "You're doing that too quickly. Please wait a bit and try again.";
+    return "You're doing that too quickly. Please wait about 30 seconds and try again.";
   }
 
   return message.trim() || fallback;
