@@ -69,7 +69,7 @@ export default function MyBoardsPage() {
       </div>
 
       {!authLoading && !user ? (
-        <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center">
+        <div className="surface-card border-dashed px-6 py-12 text-center">
           <p className="text-sm text-slate-600">
             Sign in to see the product boards linked to your account.
           </p>
@@ -88,7 +88,7 @@ export default function MyBoardsPage() {
           {error}
         </p>
       ) : boards.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center space-y-4">
+        <div className="surface-card space-y-4 border-dashed px-6 py-12 text-center">
           <p className="text-sm text-slate-600">
             No boards on this account yet. Connect a product to create one.
           </p>
@@ -105,7 +105,7 @@ export default function MyBoardsPage() {
           {boards.map((board) => (
             <li
               key={board.id}
-              className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="surface-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex min-w-0 items-start gap-3">
                 {board.logo_url ? (

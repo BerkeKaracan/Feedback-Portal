@@ -217,8 +217,9 @@ web3 = 30
 # secret = ""
 
 [auth.email]
-# App is OAuth-only (Google / GitHub). Keep email signup off locally too.
-enable_signup = false
+# Production UI is OAuth-only. Locally we keep email auth on so seed users
+# (admin@feedback.local) can sign in via the "Local admin login" button.
+enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true

@@ -156,7 +156,7 @@ function ConnectInner() {
         {step === "url" ? (
           <form
             onSubmit={handleStart}
-            className="space-y-4 rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm backdrop-blur sm:p-6"
+            className="surface-card space-y-4 p-5 sm:p-6"
           >
             <div className="grid gap-1.5">
               <label htmlFor="product-url" className="text-sm font-medium text-slate-800">
@@ -202,7 +202,7 @@ function ConnectInner() {
         ) : null}
 
         {step === "verify" && challenge ? (
-          <div className="space-y-4 rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm backdrop-blur sm:p-6">
+          <div className="surface-card space-y-4 p-5 sm:p-6">
             <div className="space-y-1">
               <p className="text-sm font-medium text-slate-900">
                 Prove ownership of {challenge.originHost}

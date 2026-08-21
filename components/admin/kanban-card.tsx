@@ -25,7 +25,7 @@ export function KanbanCard({ post, isOverlay, onOpen }: KanbanCardProps) {
     <article
       ref={isOverlay ? undefined : setNodeRef}
       className={cn(
-        "group rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_1px_0_rgba(15,23,42,0.04)] transition-all duration-200",
+        "group rounded-xl border border-slate-200 bg-white p-3 shadow-[0_1px_0_rgba(15,23,42,0.05)] transition-all duration-200",
         "hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md",
         isDragging && !isOverlay && "opacity-30",
         isOverlay &&
@@ -58,11 +58,11 @@ export function KanbanCard({ post, isOverlay, onOpen }: KanbanCardProps) {
           <h3 className="text-sm font-semibold leading-snug tracking-tight text-slate-900">
             {post.title}
           </h3>
-          <p className="line-clamp-2 text-xs leading-relaxed text-slate-500">
+          <p className="line-clamp-2 text-xs leading-relaxed text-slate-600">
             {post.description}
           </p>
           <TagChips tags={post.tags.slice(0, 3)} />
-          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
             <span className="truncate">{post.author_name}</span>
             <span className="shrink-0 tabular-nums">
               {formatRelativeDate(post.created_at)}

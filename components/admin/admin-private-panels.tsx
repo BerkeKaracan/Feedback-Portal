@@ -116,12 +116,12 @@ export function AdminPrivatePanels({ postId, open }: AdminPrivatePanelsProps) {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
-        <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-amber-900 uppercase">
+      <section className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-4">
+        <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-amber-950 uppercase">
           <Lock className="size-3.5" />
           Private from user
         </div>
-        <p className="text-xs text-amber-900/70">
+        <p className="text-xs text-amber-900">
           Only admins can see these messages. Never shown on the public board.
         </p>
         {loading ? (
@@ -157,12 +157,12 @@ export function AdminPrivatePanels({ postId, open }: AdminPrivatePanelsProps) {
         )}
       </section>
 
-      <section className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-        <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-slate-600 uppercase">
+      <section className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-slate-700 uppercase">
           <Lock className="size-3.5" />
           Internal notes
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-600">
           Team-only notes. Users never see this thread.
         </p>
 

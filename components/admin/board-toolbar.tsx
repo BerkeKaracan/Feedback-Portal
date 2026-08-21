@@ -28,7 +28,7 @@ export function BoardToolbar({
   totalCount,
 }: BoardToolbarProps) {
   return (
-    <div className="space-y-3 rounded-3xl border border-white/70 bg-white/55 p-3 shadow-sm backdrop-blur-md sm:p-4">
+    <div className="surface-card space-y-3 p-3 sm:p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-slate-400" />
