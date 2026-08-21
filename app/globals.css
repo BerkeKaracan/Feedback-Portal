@@ -129,25 +129,47 @@
   }
 }
 
+.surface-card {
+  border-radius: 1rem;
+  border: 1px solid rgb(226 232 240 / 0.95);
+  background: rgb(255 255 255 / 0.96);
+  box-shadow:
+    0 1px 0 rgb(15 23 42 / 0.04),
+    0 8px 24px rgb(15 23 42 / 0.04);
+}
+
 .admin-canvas {
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgb(204 251 241 / 0.75), transparent 55%),
-    radial-gradient(900px 420px at 90% 0%, rgb(224 242 254 / 0.8), transparent 50%),
-    linear-gradient(180deg, #f8fafc 0%, #eef2f7 48%, #f8fafc 100%);
+    radial-gradient(1100px 460px at 8% -12%, rgb(204 251 241 / 0.45), transparent 55%),
+    radial-gradient(800px 380px at 92% 0%, rgb(226 232 240 / 0.7), transparent 52%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 52%, #f8fafc 100%);
 }
 
 .public-canvas {
   background:
-    radial-gradient(900px 380px at 80% -20%, rgb(204 251 241 / 0.55), transparent 55%),
-    linear-gradient(180deg, #fbfcfe 0%, #f4f7fb 100%);
+    radial-gradient(900px 380px at 80% -20%, rgb(204 251 241 / 0.4), transparent 55%),
+    linear-gradient(180deg, #fbfcfe 0%, #f1f5f9 100%);
+}
+
+.landing-canvas {
+  background:
+    radial-gradient(900px 420px at 50% -20%, rgb(153 246 228 / 0.35), transparent 58%),
+    radial-gradient(700px 360px at 100% 20%, rgb(226 232 240 / 0.8), transparent 50%),
+    linear-gradient(165deg, #ffffff 0%, #f8fafc 45%, #eef2f7 100%);
+}
+
+.landing-glow {
+  background:
+    radial-gradient(600px 280px at 20% 30%, rgb(15 118 110 / 0.06), transparent 70%),
+    radial-gradient(500px 240px at 80% 70%, rgb(15 23 42 / 0.04), transparent 65%);
 }
 
 .admin-grid {
   background-image:
-    linear-gradient(rgb(15 23 42 / 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(15 23 42 / 0.035) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: linear-gradient(to bottom, black, transparent 92%);
+    linear-gradient(rgb(15 23 42 / 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(15 23 42 / 0.02) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
 }
 
 @keyframes board-in {

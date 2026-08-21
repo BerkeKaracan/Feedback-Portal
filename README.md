@@ -8,7 +8,9 @@ Micro-SaaS for feature requests, upvotes, comments, and an admin Kanban roadmap 
 
 | Page | URL |
 |------|-----|
-| Home | https://feedback-portal-lyart.vercel.app/ |
+| Home (platform landing) | https://feedback-portal-lyart.vercel.app/ |
+| Tenant public board | `/?tenant=<slug>` |
+| **Local demo board (test only)** | `http://localhost:3000/?tenant=demo` |
 | Connect product | https://feedback-portal-lyart.vercel.app/connect |
 | My boards | https://feedback-portal-lyart.vercel.app/boards |
 
@@ -35,10 +37,43 @@ Use the **JWT anon key** (`eyJ...`), not the `sb_publishable_...` key.
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### Local demo product (test only)
+
+After `npx supabase db reset`, a fake white-label board is seeded:
+
+| | |
+|--|--|
+| Product | **Northwind Labs** |
+| URL | [http://localhost:3000/?tenant=demo](http://localhost:3000/?tenant=demo) |
+| Admin | Local admin login → `/admin?tenant=demo` |
+| Data | 7 mock requests across idea / planned / in-progress / done |
+
+The landing page also shows **Browse demo board (test)** in development. This tenant
+is not created on production.
+
 ### Auth (Google + GitHub only)
 
-The app UI does **not** offer email/password sign-in. Disable the Email provider in
-Supabase → Authentication → Providers so password auth is off at the API layer too.
+The app UI does **not** offer email/password sign-in in production. Disable the
+Email provider in Supabase → Authentication → Providers for hosted projects so
+password auth is off at the API layer too.
+
+**Local development exception:** with `npm run dev` on localhost, the sign-in
+panel shows a **Local admin login** button. It calls `/api/dev/login`, which only
+works when `NODE_ENV=development`, the host is `localhost` / `127.0.0.1`, **and**
+`NEXT_PUBLIC_SUPABASE_URL` points at local Supabase (`http://127.0.0.1:54321`).
+It signs in the seed user `admin@feedback.local` / `password123` (see
+`supabase/seed.sql`).
+
+Setup:
+
+1. Start Docker Desktop
+2. `npx supabase start && npx supabase db reset`
+3. Put local URL + anon JWT from `npx supabase status` into `.env.local`
+4. Restart `npm run dev`
+
+If `.env.local` still points at the hosted project, local login returns an error
+instead of a silent 401. Set `ALLOW_DEV_LOGIN=0` to disable the button path.
+The route returns 404 in production builds.
 
 1. **Google Cloud Console** → OAuth client (Web)  
    Authorized redirect URI:  

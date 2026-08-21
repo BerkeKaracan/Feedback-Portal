@@ -126,7 +126,7 @@ export function RequestDetailSheet({
                 <SheetTitle className="mt-3 text-xl font-semibold tracking-tight text-slate-950">
                   {post.title}
                 </SheetTitle>
-                <SheetDescription className="mt-2 text-sm leading-relaxed text-slate-500">
+                <SheetDescription className="mt-2 text-sm leading-relaxed text-slate-600">
                   Review the request, edit tags, or move it through the
                   pipeline.
                 </SheetDescription>
@@ -135,8 +135,8 @@ export function RequestDetailSheet({
 
             <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
               <section className="grid grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                  <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p className="text-[11px] font-semibold tracking-wide text-slate-600 uppercase">
                     Votes
                   </p>
                   <p className="mt-1 flex items-center gap-1 text-lg font-semibold text-slate-900 tabular-nums">
@@ -144,32 +144,32 @@ export function RequestDetailSheet({
                     {post.vote_count}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                  <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p className="text-[11px] font-semibold tracking-wide text-slate-600 uppercase">
                     Author
                   </p>
                   <p className="mt-1 truncate text-sm font-medium text-slate-900">
                     {post.author_name}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                  <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p className="text-[11px] font-semibold tracking-wide text-slate-600 uppercase">
                     Created
                   </p>
                   <p className="mt-1 text-sm font-medium text-slate-900">
                     {formatShortDate(post.created_at)}
                   </p>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-500">
                     {formatRelativeDate(post.created_at)}
                   </p>
                 </div>
               </section>
 
               <section className="space-y-2">
-                <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                <h3 className="text-xs font-semibold tracking-wide text-slate-600 uppercase">
                   Description
                 </h3>
-                <p className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-relaxed text-slate-700">
+                <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-800">
                   {post.description}
                 </p>
                 {post.attachments && post.attachments.length > 0 ? (

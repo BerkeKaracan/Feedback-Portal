@@ -17,7 +17,7 @@ type FeatureCardProps = {
 
 export function FeatureCard({ post, onToggleVote, onOpen }: FeatureCardProps) {
   return (
-    <article className="group flex gap-4 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+    <article className="surface-card group flex gap-4 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
       <UpvoteButton
         count={post.vote_count}
         voted={post.has_voted}
@@ -35,7 +35,7 @@ export function FeatureCard({ post, onToggleVote, onOpen }: FeatureCardProps) {
           </h2>
           <StatusBadge status={post.status} />
         </div>
-        <p className="line-clamp-2 text-sm leading-relaxed text-slate-500">
+        <p className="line-clamp-2 text-sm leading-relaxed text-slate-600">
           {post.description}
         </p>
         {post.attachments && post.attachments.length > 0 ? (
@@ -46,11 +46,11 @@ export function FeatureCard({ post, onToggleVote, onOpen }: FeatureCardProps) {
           />
         ) : null}
         <TagChips tags={post.tags} />
-        <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
+        <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
           <span>
             {post.author_name} · {formatRelativeDate(post.created_at)}
           </span>
-          <span className="inline-flex items-center gap-1 tabular-nums text-slate-400 transition-colors group-hover:text-slate-600">
+          <span className="inline-flex items-center gap-1 tabular-nums text-slate-500 transition-colors group-hover:text-slate-700">
             <MessageSquare className="size-3.5" />
             {post.comment_count}
           </span>

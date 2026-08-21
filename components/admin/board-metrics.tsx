@@ -48,20 +48,20 @@ export function BoardMetrics({ posts }: BoardMetricsProps) {
       {metrics.map((metric, index) => (
         <div
           key={metric.label}
-          className="admin-metric animate-board-in rounded-2xl border border-white/60 bg-white/70 px-4 py-3 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-sm"
+          className="admin-metric surface-card animate-board-in px-4 py-3"
           style={{ animationDelay: `${index * 60}ms` }}
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+              <p className="text-xs font-semibold tracking-wide text-slate-600 uppercase">
                 {metric.label}
               </p>
-              <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
+              <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 tabular-nums">
                 {metric.value}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">{metric.detail}</p>
+              <p className="mt-0.5 text-xs text-slate-600">{metric.detail}</p>
             </div>
-            <span className="flex size-9 items-center justify-center rounded-xl bg-slate-900/5 text-slate-700">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-800">
               <metric.icon className="size-4" />
             </span>
           </div>
